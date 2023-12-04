@@ -8,7 +8,7 @@ foreach (var line in file.Select((str,i) => (str,i)))
     var card2 = sp[1].Split(" ", StringSplitOptions.RemoveEmptyEntries).Select(str => int.Parse(str.Trim())).ToList();
 
     var matches = card1.Intersect(card2).ToList();
-    var score = matches.Count > 0 ? (int) (Math.Pow(2, matches.Count - 1)) : 0;
+    var score = (int) Math.Pow(2, matches.Count - 1);
 
     for (int wonCards = line.i + 1; wonCards < line.i + 1 + matches.Count; wonCards++)
     {
