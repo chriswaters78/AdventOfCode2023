@@ -46,8 +46,6 @@ static List<Range> map(List<Map> maps, List<Range> source)
             // R    |-----|
             // M |----|
 
-            //if overlaps, add result, find remaining ranges and recursively call
-            var unmapped = new Range[] { new(rangeStart, Math.Max(rangeStart, mapSource)), new(Math.Max(rangeEnd, mapSource + mapLength), rangeEnd) };
             var mappedMiddle = new Range(Math.Max(rangeStart, mapSource), Math.Min(rangeEnd, mapSource + mapLength));
 
             if (mappedMiddle.start < mappedMiddle.end)
@@ -55,7 +53,13 @@ static List<Range> map(List<Map> maps, List<Range> source)
                 //this map intersected this range so add the mapped results
                 destRanges.AddRange(new List<Range>() { new(mapDestination + mappedMiddle.start - mapSource, mapDestination + mappedMiddle.end - mapSource) });
                 //and recurse over any unmapped sections
-                destRanges.AddRange(unmapped.Where(range => range.start < range.end).SelectMany(range => map(maps, new List<Range>() { range })));
+                //if overlaps, add result, find remaining ranges and recursively call
+                destRanges.AddRange(
+                    new Range[] { 
+                        new(rangeStart, Math.Max(rangeStart, mapSource)), 
+                        new(Math.Max(rangeEnd, mapSource + mapLength), rangeEnd) }
+                    .Where(range => range.start < range.end)
+                    .SelectMany(range => map(maps, new List<Range>() { range })));
                 goto mapped;
             }
         }
