@@ -14,8 +14,6 @@ namespace _2023_05
 
             var lines = File.ReadAllLines("input.txt");
             var seeds = lines[0].Split(": ")[1].Split(" ").Select(long.Parse).ToList();
-            var pairedSeeds = seeds.Select((seed,i) => (seed,i)).GroupBy(tp => tp.i / 2).Select(grp => (grp.First().seed,grp.Skip(1).First().seed)).ToList();
-            var totalPaired = pairedSeeds.Sum(tp => tp.Item2);
             maps = Enumerable.Range(0, 7).Select(_ => new List<(long destination, long source, long length)>()).ToArray();
             int current = -1;
             foreach (var line in lines.Skip(1))
@@ -31,39 +29,28 @@ namespace _2023_05
                 maps[current].Add((sp[0], sp[1], sp[2]));
             }
 
-            var part1 = long.MaxValue;
-            foreach (var seed in seeds)
-            {
-                var range = new List<(long start, long end)>() { (seed, seed + 1) };
-                part1 = Math.Min(part1, solve(range));
-            }
+            var part1 = seeds
+                .Select(seed => solve(new List<(long start, long end)>() { (seed, seed + 1) }))
+                .Min();
+
             Console.WriteLine($"Part1: {part1} in {stopwatch.ElapsedMilliseconds}ms");
 
-            var part2 = long.MaxValue;
-            foreach (var tp in pairedSeeds)
-            {
-                var range = new List<(long start, long end)>() { (tp.Item1, tp.Item1 + tp.Item2) };
-                part2 = Math.Min(part2, solve(range));
-            }
+            var part2 = seeds
+                .Select((seed, i) => (seed, i)).GroupBy(tp => tp.i / 2)
+                .Select(grp => (grp.First().seed, grp.Skip(1).First().seed))
+                .Select(pair => solve(new List<(long start, long end)>() { (pair.Item1, pair.Item1 + pair.Item2) }))
+                .Min();
 
             Console.WriteLine($"Part2: {part2} in {stopwatch.ElapsedMilliseconds}ms");
         }
 
-        private static long solve(List<(long start, long end)> source)
-        {
-            var range = source;
-            for (int mapIndex = 0; mapIndex < maps.Length; mapIndex++)
-            {
-                range = map2(mapIndex, range);
-            }
-            return range.Min(tp => tp.start);
-        }
-        private static List<(long start, long end)> map2(int mapIndex, List<(long start, long end)> source)
+        private static long solve(List<(long start, long end)> source) => maps.Aggregate(source, (acc, map) => Program.map(map, acc), acc => acc.Min(tp => tp.start));
+        private static List<(long start, long end)> map(List<(long destination, long source, long length)> map, List<(long start, long end)> source)
         {
             var destRanges = new List<(long start, long end)>();
             foreach (var (rangeStart, rangeEnd) in source)
             {
-                foreach (var (ss, se, ds, de) in maps[mapIndex]
+                foreach (var (ss, se, ds, de) in map
                     .Select(map => (map.source,map.source + map.length, map.destination, map.destination + map.length)))
                 {
                     //if overlaps, add result, find remaining ranges and recursively call
@@ -73,32 +60,29 @@ namespace _2023_05
                     // R    |-----|
                     // M |----|
 
-                    //get any unmapped start
-                    (long start, long end) us = (rangeStart, Math.Max(rangeStart, ss));
-                    //get any mapped middle
-                    (long start, long end) mm = (Math.Max(rangeStart, ss), Math.Min(rangeEnd, se));
-                    //get any unmapped end
-                    (long start, long end) ue = (Math.Max(rangeEnd, se), rangeEnd);
+                    (long start, long end) unmappedStart = (rangeStart, Math.Max(rangeStart, ss));
+                    (long start, long end) mappedMiddle = (Math.Max(rangeStart, ss), Math.Min(rangeEnd, se));
+                    (long start, long end) unmappedEnd = (Math.Max(rangeEnd, se), rangeEnd);
 
-                    if (mm.start < mm.end)
+                    if (mappedMiddle.start < mappedMiddle.end)
                     {
-                        //this map intersected this range, so recurse and add the mapped results
-                        //we are done with this range now
-                        destRanges.AddRange(new List<(long start, long end)>() { (ds + mm.start - ss, ds + mm.end - ss)});
-                        if (us.start < us.end)
+                        //this map intersected this rang
+                        //add the mapped results
+                        destRanges.AddRange(new List<(long start, long end)>() { (ds + mappedMiddle.start - ss, ds + mappedMiddle.end - ss)});
+                        //and recurse over any unmapped sections
+                        if (unmappedStart.start < unmappedStart.end)
                         {
-                            destRanges.AddRange(map2(mapIndex, new List<(long start, long end)>() { us }));
+                            destRanges.AddRange(Program.map(map, new List<(long start, long end)>() { unmappedStart }));
                         }
-                        if (ue.start < ue.end)
+                        if (unmappedEnd.start < unmappedEnd.end)
                         {
-                            destRanges.AddRange(map2(mapIndex, new List<(long start, long end)>() { ue }));
+                            destRanges.AddRange(Program.map(map, new List<(long start, long end)>() { unmappedEnd }));
                         }
                         goto mapped;
                     }
                 }
-                //we didn't find any mappings, so whole range is unmapped
+                //we didn't find any mappings, so the whole range is unmapped
                 destRanges.Add((rangeStart, rangeEnd));
-
             mapped:
                 continue;
             }
