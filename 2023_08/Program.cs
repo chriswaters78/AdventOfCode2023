@@ -1,4 +1,6 @@
-﻿namespace _2023_08
+﻿using System.Numerics;
+
+namespace _2023_08
 {
     internal class Program
     {
@@ -24,6 +26,14 @@
             //}
 
             //do some maths!
+            //code below finds every endpoint repeats with a given interval
+            //and all the repeats are divisible by 293
+            //so we just need to find the lowest common multiple of all the cycles
+            //which is a pretty big number
+
+            //can use BigInteger.GreatestCommonDivisor
+            //and the relationship LCM = a x b / GCD(a,b)
+
             long l = 71958382637 * 293;
             Console.WriteLine($"{l}");
             {
