@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>_2023_10_FSharp</RootNamespace>
+    <RootNamespace>_2023_11_FSharp</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
