@@ -1,14 +1,9 @@
-﻿System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
-watch.Start();
-
-var byRow = File.ReadAllText("input.txt").Split($"{Environment.NewLine}{Environment.NewLine}")
+﻿var byRow = File.ReadAllText("input.txt").Split($"{Environment.NewLine}{Environment.NewLine}")
     .Select(grid => grid.Split($"{Environment.NewLine}")).ToArray();
 
 var byColumn = byRow.Select(grid =>
     Enumerable.Range(0, grid[0].Length).Select(c => String.Join("", 
             Enumerable.Range(0, grid.Length).Select(r => grid[r][c]))).ToArray()).ToArray();
-
-Func<List<(int, int)>, int, List<int>> filter = (reflections, smudges) => reflections.Where(tp => tp.Item2 == smudges).Select(tp => tp.Item1).ToList();
 
 (var part1, var part2) = byColumn.Zip(byRow).Select(tp =>
 {
@@ -21,11 +16,12 @@ Func<List<(int, int)>, int, List<int>> filter = (reflections, smudges) => reflec
 
 Console.WriteLine($"Part1: {part1}");
 Console.WriteLine($"Part2: {part2}");
-Console.WriteLine($"Elapsed time: {watch.ElapsedMilliseconds}ms");
 
-List<(int r, int)> findReflectionSmudges (string[] grid) => 
+List<(int i, int s)> findReflectionSmudges(string[] grid) =>
     Enumerable.Range(1, grid.Length - 1)
         .Select(r => (r, grid.Take(r).Reverse().Zip(grid.Skip(r))
             .Sum(tp => tp.First.Zip(tp.Second).Count(tp => tp.First != tp.Second)))).ToList();
+
+List<int> filter(List<(int i, int s)> reflections, int smudges) => reflections.Where(tp => tp.s == smudges).Select(tp => tp.i).ToList();
 
 void printGrid(string[] grid) => grid.Concat(new[] { "" }).ToList().ForEach(Console.WriteLine);
