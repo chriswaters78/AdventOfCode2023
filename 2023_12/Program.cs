@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace _2023_12
+﻿namespace _2023_12
 {
     internal class Program
     {
@@ -34,7 +32,7 @@ namespace _2023_12
             stateCache[cacheKey] = currMask.Sum( c => c switch
                 {
                     '.' when state.currentRun == 0
-                        => consume(new State(state.remainingMask[1..], state.currentRun, state.remainingSpec)),
+                        => consume(new State(state.remainingMask[1..], 0, state.remainingSpec)),
                     '.' when state.currentRun == state.remainingSpec.FirstOrDefault()
                         => consume(new State(state.remainingMask[1..], 0, state.remainingSpec.Skip(1).ToList())),
                     '.' => 0,
