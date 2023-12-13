@@ -5,17 +5,18 @@ var byColumn = byRow.Select(grid =>
     Enumerable.Range(0, grid[0].Length).Select(c => String.Join("", 
             Enumerable.Range(0, grid.Length).Select(r => grid[r][c]))).ToArray()).ToArray();
 
-(var part1, var part2) = byColumn.Zip(byRow).Select(tp =>
-{
-    (var hR, var vR) = (findReflectionSmudges(tp.Second), findReflectionSmudges(tp.First));    
-    (var hR0, var vR0) = (filter(hR,0), filter(vR, 0));
-    (var hR1, var vR1) = (filter(hR, 1).Except(hR0), filter(vR, 1).Except(vR0));
+var answers =
+    from tp in byColumn.Zip(byRow)
+    let hR = findReflectionSmudges(tp.Second)
+    let vR = findReflectionSmudges(tp.First)
+    let hR0 = filter(hR, 0)
+    let vR0 = filter(vR, 0)
+    let hR1 = filter(hR, 1).Except(hR0)
+    let vR1 = filter(vR, 1).Except(vR0)
+    select (100 * hR0.Sum() + vR0.Sum(), 100 * hR1.Sum() + vR1.Sum());
 
-    return (100 * hR0.Sum() + vR0.Sum(), 100 * hR1.Sum() + vR1.Sum());
-}).Aggregate((tp1, tp2) => (tp1.Item1 + tp2.Item1, tp1.Item2 + tp2.Item2));
-
-Console.WriteLine($"Part1: {part1}");
-Console.WriteLine($"Part2: {part2}");
+Console.WriteLine($"Part1: {answers.Sum(tp => tp.Item1)}");
+Console.WriteLine($"Part2: {answers.Sum(tp => tp.Item2)}");
 
 List<(int i, int s)> findReflectionSmudges(string[] grid) =>
     Enumerable.Range(1, grid.Length - 1)
@@ -23,5 +24,3 @@ List<(int i, int s)> findReflectionSmudges(string[] grid) =>
             .Sum(tp => tp.First.Zip(tp.Second).Count(tp => tp.First != tp.Second)))).ToList();
 
 List<int> filter(List<(int i, int s)> reflections, int smudges) => reflections.Where(tp => tp.s == smudges).Select(tp => tp.i).ToList();
-
-void printGrid(string[] grid) => grid.Concat(new[] { "" }).ToList().ForEach(Console.WriteLine);
