@@ -2,13 +2,12 @@
 {
     internal class Program
     {
-        static Dictionary<string, long> stateCache = new();
         static void Main(string[] args)
         {
-            var puzzles = File.ReadAllLines("test.txt").Select(line => line.Split(" "))
+            var puzzles = File.ReadAllLines("input.txt").Select(line => line.Split(" "))
                 .Select(sp => new { masks = sp[0], specs = sp[1].Split(",").Select(int.Parse).ToList() }).ToList();
 
-            Func<long> solve = () => puzzles.Select(a => consume(new State($"{a.masks}.", 0, a.specs))).Sum();
+            Func<long> solve = () => puzzles.Select(a => consume(new State($"{a.masks}.", 0, a.specs), new())).Sum();
             Console.WriteLine($"Part1: {solve()}");
 
             puzzles = puzzles.Select(puzzle => new {
@@ -19,7 +18,7 @@
             Console.WriteLine($"Part2: {solve()}");
         }
 
-        static long consume(State state)
+        static long consume(State state, Dictionary<string,long> stateCache)
         {
             var cacheKey = stateToCacheKey(state);
             if (stateCache.ContainsKey(cacheKey))
@@ -32,18 +31,21 @@
             stateCache[cacheKey] = currMask.Sum( c => c switch
                 {
                     '.' when state.currentRun == 0
-                        => consume(new State(state.remainingMask[1..], 0, state.remainingSpec)),
+                        => consume(new State(state.remainingMask[1..], 0, state.remainingSpec), stateCache),
                     '.' when state.currentRun == state.remainingSpec.FirstOrDefault()
-                        => consume(new State(state.remainingMask[1..], 0, state.remainingSpec.Skip(1).ToList())),
+                        => consume(new State(state.remainingMask[1..], 0, state.remainingSpec.Skip(1).ToList()), stateCache),
                     '.' => 0,
-                    '#' => consume(new State(state.remainingMask[1..], state.currentRun + 1, state.remainingSpec))
+                    '#' => consume(new State(state.remainingMask[1..], state.currentRun + 1, state.remainingSpec), stateCache)
                 });
 
             return stateCache[cacheKey];
         }
 
+        //max length of mask ~100 and spec ~ 30
+        //max length of run is same as mask
+        //so max number of cache entries is 100^2 * 30 = 300,000
         private static string stateToCacheKey(State state) 
-            => $"{state.remainingMask}:{state.currentRun}:{String.Join(",", state.remainingSpec)}";
+            => $"{state.remainingMask.Length}:{state.currentRun}:{state.remainingSpec.Count}";
         record struct State(string remainingMask, int currentRun, List<int> remainingSpec);
     }
 }
