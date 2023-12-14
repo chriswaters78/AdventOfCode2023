@@ -1,36 +1,29 @@
-﻿using System.Text;
+﻿const long CYCLES = 1000000000L;
 
 var grid = File.ReadAllLines("input.txt").Select(str => str.ToArray()).ToList();
 (int R, int C) = (grid.Count, grid[0].Length);
 
 var grid1 = grid.Select(arr => arr.ToArray()).ToList();
 shuffle(grid1,0);
-
 var part1 = score(grid1);
+
 Console.WriteLine($"Part1: {part1}");
 
-const long cycles = 1000000000L;
-
-var grids = new Dictionary<string, long>();
-
-(long r1, long r2) = (-1, -1);
+var gridCache = new Dictionary<string, long>();
 var grid2 = grid.Select(arr => arr.ToArray()).ToList();
-for (long i = 0; i < cycles; i++)
+for (long i = 0; i < CYCLES; i++)
 {
-    shuffle(grid2, 0);
-    shuffle(grid2, 1);
-    shuffle(grid2, 2);
-    shuffle(grid2, 3);
+    for (int dir = 0; dir < 4; dir++)
+        shuffle(grid2, dir);
 
-    Console.WriteLine($"After {i} Score {score(grid2)}");
     var key = print(grid2);
-    if (grids.ContainsKey(key))
+    if (gridCache.ContainsKey(key))
     {
-        (r1, r2) = (grids[key], i);
-        var inc = (cycles - r2) / (r2 - r1);
+        var (r1, r2) = (gridCache[key], i);
+        var inc = (CYCLES - r2) / (r2 - r1);
         i += inc * (r2 - r1);
     }
-    grids[key] = i;
+    gridCache[key] = i;
 }
 
 var part2 = score(grid2);
@@ -54,94 +47,29 @@ long score(List<char[]> grid)
 }
 void shuffle(List<char[]> grid, int direction)
 {
-    if (direction == 0)
+    (bool swap, bool reverse) = (direction % 2 == 1, direction % 4 >= 2);
+
+    (var outer, var inner) = swap ? (R, C) : (C, R);
+    for (int i1 = 0; i1 < outer; i1++)
     {
-        for (int c = 0; c < C; c++)
+        bool anyMoved;
+        do
         {
-            bool anyMoved;
-            do
+            anyMoved = false;
+            for (int i2 = 1; i2 < inner; i2++)
             {
-                anyMoved = false;
-                for (int r = 1; r < R; r++)
+                (var i2O, var i2E) = reverse ? (inner - i2 - 1, inner - i2) : (i2, i2 - 1);
+                (var rO, var cO, var rE, var cE) = swap ? (i1, i2O, i1, i2E) : (i2O,i1, i2E, i1);
+                
+                if (grid[rE][cE] == '.' && grid[rO][cO] == 'O')
                 {
-                    if (grid[r - 1][c] == '.' && grid[r][c] == 'O')
-                    {
-                        grid[r - 1][c] = 'O';
-                        grid[r][c] = '.';
-                        anyMoved = true;
-                    }
+                    grid[rE][cE] = 'O';
+                    grid[rO][cO] = '.';
+                    anyMoved = true;
                 }
-            } while (anyMoved);
-        }
-    }
-    else if (direction == 1)
-    {
-        for (int r = 0; r < R; r++)
-        {
-            bool anyMoved;
-            do
-            {
-                anyMoved = false;
-                for (int c = 1; c < C; c++)
-                {
-                    if (grid[r][c - 1] == '.' && grid[r][c] == 'O')
-                    {
-                        grid[r][c - 1] = 'O';
-                        grid[r][c] = '.';
-                        anyMoved = true;
-                    }
-                }
-            } while (anyMoved);
-        }
-    }
-    else if (direction == 2)
-    {
-        for (int c = 0; c < C; c++)
-        {
-            bool anyMoved;
-            do
-            {
-                anyMoved = false;
-                for (int r = R - 2; r >= 0; r--)
-                {
-                    if (grid[r + 1][c] == '.' && grid[r][c] == 'O')
-                    {
-                        grid[r + 1][c] = 'O';
-                        grid[r][c] = '.';
-                        anyMoved = true;
-                    }
-                }
-            } while (anyMoved);
-        }
-    }
-    else
-    {
-        for (int r = 0; r < R; r++)
-        {
-            bool anyMoved;
-            do
-            {
-                anyMoved = false;
-                for (int c = C - 2; c >= 0; c--)
-                {
-                    if (grid[r][c + 1] == '.' && grid[r][c] == 'O')
-                    {
-                        grid[r][c + 1] = 'O';
-                        grid[r][c] = '.';
-                        anyMoved = true;
-                    }
-                }
-            } while (anyMoved);
-        }
+            }
+        } while (anyMoved);
     }
 }
 
-string print(List<char[]> grid)
-{
-    var builder = new StringBuilder(); 
-    foreach (var arr in grid)
-    {
-        builder.AppendLine(String.Join("", arr));
-    }
-    return builder.ToString();
-}
+string print(List<char[]> grid) => grid.Aggregate(new System.Text.StringBuilder(), (sb, arr) => sb.AppendLine(new (arr)), sb => sb.ToString());
