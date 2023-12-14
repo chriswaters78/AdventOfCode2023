@@ -15,25 +15,25 @@ var part2 = solve(
 Console.WriteLine($"Part2: {part2} in {watch.ElapsedMilliseconds}ms");
 
 long solve(IEnumerable<Row> rows) => rows.AsParallel().Select(row => consume(new State(0, 0, row.spec.Count), new(), $"{row.condition}.", row.spec)).Sum();
-long consume(State state, Dictionary<State, long> stateCache, string mask, List<int> spec)
+long consume(State state, Dictionary<State, long> stateCache, string condition, List<int> spec)
 {
     if (stateCache.ContainsKey(state))
         return stateCache[state];
             
-    if (state.consumed == mask.Length)
+    if (state.consumed == condition.Length)
         return state.remainingRuns == 0 ? 1 : 0;
 
-    var charCanBe = mask[state.consumed] == '?' ? ".#" : $"{mask[state.consumed]}";
+    var charCanBe = condition[state.consumed] == '?' ? ".#" : $"{condition[state.consumed]}";
     var result = 0L;
     foreach (var ch in charCanBe)
         result += ch switch
         {
             '.' when state.run == 0
-                => consume(new State(state.consumed + 1, 0, state.remainingRuns), stateCache, mask, spec),
+                => consume(state with { consumed = state.consumed + 1 }, stateCache, condition, spec),
             '.' when state.remainingRuns >= 1 && state.run == spec[spec.Count - state.remainingRuns]
-                => consume(new State(state.consumed + 1, 0, state.remainingRuns - 1), stateCache, mask, spec),
+                => consume(state with { consumed = state.consumed + 1, run = 0, remainingRuns = state.remainingRuns - 1 }, stateCache, condition, spec),
             '.' => 0,
-            '#' => consume(new State(state.consumed + 1, state.run + 1, state.remainingRuns), stateCache, mask, spec)
+            '#' => consume(state with { consumed = state.consumed + 1, run = state.run + 1 }, stateCache, condition, spec)
         };
 
     return stateCache[state] = result;

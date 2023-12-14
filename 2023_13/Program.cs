@@ -1,9 +1,9 @@
 ﻿var byRow = File.ReadAllText("input.txt").Split($"{Environment.NewLine}{Environment.NewLine}")
     .Select(grid => grid.Split($"{Environment.NewLine}")).ToArray();
 
-var byColumn = byRow.Select(grid =>
-    Enumerable.Range(0, grid[0].Length).Select(c => String.Join("", 
-            Enumerable.Range(0, grid.Length).Select(r => grid[r][c]))).ToArray()).ToArray();
+var byColumn = byRow.Select(grid => Enumerable.Range(0, grid[0].Length)
+        .Select(c => String.Join("", Enumerable.Range(0, grid.Length)
+            .Select(r => grid[r][c]))).ToArray()).ToArray();
 
 var answer =
         (from tp in byColumn.Zip(byRow)

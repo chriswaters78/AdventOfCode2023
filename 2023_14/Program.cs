@@ -1,6 +1,6 @@
 ﻿const long CYCLES = 1000000000L;
 
-var grid = File.ReadAllLines("input.txt").Select(str => str.ToArray()).ToList();
+var grid = File.ReadAllLines("test.txt").Select(str => str.ToArray()).ToList();
 (int R, int C) = (grid.Count, grid[0].Length);
 
 var grid1 = grid.Select(arr => arr.ToArray()).ToList();
@@ -17,11 +17,12 @@ for (long i = 0; i < CYCLES; i++)
         shuffle(grid2, dir);
 
     var key = print(grid2);
-    if (gridCache.ContainsKey(key))
+    if (gridCache.TryGetValue(key, out long cycleStart))
     {
-        var (r1, r2) = (gridCache[key], i);
-        var inc = (CYCLES - r2) / (r2 - r1);
-        i += inc * (r2 - r1);
+        var cycleLength = i - cycleStart;
+        var skip = (CYCLES - i) / cycleLength;
+        i += skip * cycleLength;
+        if (skip > 0) Console.WriteLine($"cycleLength:{cycleLength}, cycleStart:{cycleStart}, skip {skip} to {i}");
     }
     gridCache[key] = i;
 }
@@ -29,26 +30,13 @@ for (long i = 0; i < CYCLES; i++)
 var part2 = score(grid2);
 Console.WriteLine($"Part2: {part2}");
 
-long score(List<char[]> grid)
-{
-    var answer = 0L;
-    for (int r = 0; r < R; r++)
-    {
-        for (int c = 0; c < C; c++)
-        {
-            if (grid[r][c] == 'O')
-            {
-                answer += (R - r);
-            }
-        }
-    }
+long score(List<char[]> grid) => 
+    Enumerable.Range(0, R).Sum(r => 
+        Enumerable.Range(0, C).Sum(c => grid[r][c] == 'O' ? R - r : 0));
 
-    return answer;
-}
 void shuffle(List<char[]> grid, int direction)
 {
     (bool swap, bool reverse) = (direction % 2 == 1, direction % 4 >= 2);
-
     (var outer, var inner) = swap ? (R, C) : (C, R);
     for (int i1 = 0; i1 < outer; i1++)
     {
