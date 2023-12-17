@@ -15,8 +15,8 @@ int solve(int minMoves, int maxMoves)
     var cache = new Dictionary<State, int>();
 
     var queue = new PriorityQueue<State, int>();
-    queue.Enqueue(new State(new Point(0, 0), Direction.East, 0), 0);
-    queue.Enqueue(new State(new Point(0, 0), Direction.South, 0), 0);
+    queue.Enqueue(new State(new Point(0, 0), 1, 0), 0);
+    queue.Enqueue(new State(new Point(0, 0), 2, 0), 0);
 
     while (true)
     {
@@ -34,19 +34,18 @@ int solve(int minMoves, int maxMoves)
         }
         cache[currS] = currP;
 
-        foreach (var dirE in validDirections(currS.lastMove))
+        foreach (var dir in validDirections(currS.lastMove))
         {
-            var dir = (int)dirE;
-            if ((int)currS.lastMove != dir && currS.movesInSameDirection < minMoves)
+            if (currS.lastMove != dir && currS.movesInSameDirection < minMoves)
             {
                 continue;
             }
-            if ((int)currS.lastMove == dir && currS.movesInSameDirection >= maxMoves)
+            if (currS.lastMove == dir && currS.movesInSameDirection >= maxMoves)
             {
                 continue;
             }
             //we can move this way
-            var newState = new State(move(currS.point, dir), (Direction)dir, (int)currS.lastMove == dir ? currS.movesInSameDirection + 1 : 1);
+            var newState = new State(move(currS.point, dir), dir, currS.lastMove == dir ? currS.movesInSameDirection + 1 : 1);
 
             if (newState.point.r < 0 || newState.point.c < 0 || newState.point.r >= R || newState.point.c >= C)
             {
@@ -67,21 +66,9 @@ Point move(Point p, int d) => d switch
     3 => new Point(p.r, p.c - 1),
 };
 
-List<Direction> validDirections(Direction dir) => dir switch
-{
-    Direction.North => new List<Direction>() { Direction.North, Direction.West, Direction.East },
-    Direction.East => new List<Direction>() { Direction.East, Direction.North, Direction.South },
-    Direction.South => new List<Direction>() { Direction.South, Direction.West, Direction.East },
-    Direction.West => new List<Direction>() { Direction.West, Direction.North, Direction.South },
-};
+List<int> validDirections(int dir) => Enumerable.Range(0, 4).Where(nd => (dir + 2) % 4 != nd).ToList();
 
-record struct State(Point point, Direction lastMove, int movesInSameDirection);
+//N = 0, East = 1, South = 2, West = 3
+record struct State(Point point, int lastMove, int movesInSameDirection);
 record struct Point(int r, int c);
 
-enum Direction
-{
-    North = 0,
-    East = 1,
-    South = 2,
-    West = 3,
-}
