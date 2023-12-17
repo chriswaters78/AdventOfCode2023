@@ -13,32 +13,33 @@ Console.WriteLine($"Part1: {part1}");
 var boxes = Enumerable.Range(0,255).Select(_ => new List<(string label, int focus)>()).ToArray();
 foreach (var step in steps)
 {
-    var sp = step.Split("=");
-    if (sp.Length == 2) //= step
+    var sp = step.Split("=-".ToArray(), StringSplitOptions.RemoveEmptyEntries);
+    switch (sp)
     {
-        var label = sp[0];
-        var box = hash(label);
-        var focus = int.Parse(sp[1]);
-        bool found = false;
-        for (int i = 0; i < boxes[box].Count; i++)
-        {
-            if (boxes[box][i].label == label)
+        case [var label, var focalLength]:
             {
-                found = true;
-                boxes[box][i] = (boxes[box][i].label, focus);
-                break;
+                var fint = focalLength[0] - '0';
+                var box = hash(label);
+                bool found = false;
+                for (int i = 0; i < boxes[box].Count; i++)
+                {
+                    if (boxes[box][i].label == label)
+                    {
+                        boxes[box][i] = (boxes[box][i].label, fint);
+                        goto done;
+                    }
+                }
+                if (!found)
+                    boxes[box].Add((label, fint));
+                done:;
             }
-        }
-        if (!found)
-        {
-            boxes[box].Add((label, focus));
-        }
-    }
-    else //- step
-    {
-        var label = sp[0].Trim('-');
-        var box = hash(label.Trim('-'));
-        boxes[box] = boxes[box].Where(lens => lens.label != label).ToList();
+            break;
+        case [var label]:
+            {
+                var box = hash(label);
+                boxes[box] = boxes[box].Where(lens => lens.label != label).ToList();
+            }
+            break;
     }
 }
 
