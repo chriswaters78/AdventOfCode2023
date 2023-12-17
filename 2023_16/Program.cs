@@ -1,15 +1,18 @@
-﻿var grid = File.ReadAllLines("input.txt");
+﻿System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
+watch.Start();
+var grid = File.ReadAllLines("input.txt");
 (int R, int C) = (grid.Length, grid.First().Length);
 
 var part1 = new[] { new Beam(new Point(0, 0), Direction.East), new Beam(new Point(0, 0), Direction.South) }.Max(solve);
-Console.WriteLine($"Part1: {part1}");
+Console.WriteLine($"Part1: {part1} in {watch.ElapsedMilliseconds}ms");
 
 var part2 = Enumerable.Range(0, R)
     .SelectMany(r => new[] { new Beam(new Point(r, 0), Direction.East), new Beam(new Point(r, C - 1), Direction.West) })
     .Concat(Enumerable.Range(0, C).SelectMany(c => new[] { new Beam(new Point(0, c), Direction.South), new Beam(new Point(R - 1, c), Direction.North) }))
+    .AsParallel()
     .Max(solve);
 
-Console.WriteLine($"Part2: {part2}");
+Console.WriteLine($"Part2: {part2} in {watch.ElapsedMilliseconds}ms");
 
 int solve(Beam initialBeam)
 {

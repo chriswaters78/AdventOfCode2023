@@ -33,7 +33,7 @@ int solve(int minMoves, int maxMoves)
         {
             if (state.direction != dir && state.moves < minMoves
             || state.direction == dir && state.moves >= maxMoves)
-            continue;
+                continue;
 
             var nextState = new State(state.point + dir, dir, state.direction == dir ? state.moves + 1 : 1);
             if (nextState.point.Real < 0 || nextState.point.Imaginary < 0 || nextState.point.Real >= R || nextState.point.Imaginary >= C)
