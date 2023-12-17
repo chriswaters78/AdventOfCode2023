@@ -2,71 +2,106 @@
 
 (int R, int C) = (grid.Length, grid.First().Length);
 
-var beams = new Queue<Beam>();
-var energised = Enumerable.Range(0, R).SelectMany(r => Enumerable.Range(0, C).Select(c => new Point(r, c))).ToDictionary(p => p, _ => 0);
-
-beams.Enqueue(new Beam(new Point(0, 0), Direction.East));
-while (beams.Any())
 {
-    var beam = beams.Dequeue();
+    var beams = new Queue<Beam>();
+    beams.Enqueue(new Beam(new Point(0, 0), Direction.East));
+    var energised = solve(beams);
 
-    if (beam.point.r < 0 || beam.point.c < 0 || beam.point.r >= R || beam.point.c >= C)
-        continue;
-
-    if ((energised[beam.point] & (int) beam.dir) > 0) 
-        continue;
-
-    energised[beam.point] = energised[beam.point] | (int)beam.dir;
-
-    switch ((beam.dir, grid[beam.point.r][beam.point.c]))
-    {
-        case (_, '.'):
-        case (Direction.North, '|'):
-        case (Direction.South, '|'):
-        case (Direction.West, '-'):
-        case (Direction.East, '-'):
-            beams.Enqueue(next(beam.point, beam.dir));
-            break;
-        case (Direction.North, '/'):
-            beams.Enqueue(next(beam.point, Direction.East));
-            break;
-        case (Direction.East, '/'):
-            beams.Enqueue(next(beam.point, Direction.North));
-            break;
-        case (Direction.South, '/'):
-            beams.Enqueue(next(beam.point, Direction.West));
-            break;
-        case (Direction.West, '/'):
-            beams.Enqueue(next(beam.point, Direction.South));
-            break;
-        case (Direction.North, '\\'):
-            beams.Enqueue(next(beam.point, Direction.West));
-            break;
-        case (Direction.East, '\\'):
-            beams.Enqueue(next(beam.point, Direction.South));
-            break;
-        case (Direction.South, '\\'):
-            beams.Enqueue(next(beam.point, Direction.East));
-            break;
-        case (Direction.West, '\\'):
-            beams.Enqueue(next(beam.point, Direction.North));
-            break;
-        case (Direction.North, '-'):
-        case (Direction.South, '-'):
-            beams.Enqueue(next(beam.point, Direction.West));
-            beams.Enqueue(next(beam.point, Direction.East));
-            break;
-        case (Direction.West, '|'):
-        case (Direction.East, '|'):
-            beams.Enqueue(next(beam.point, Direction.North));
-            beams.Enqueue(next(beam.point, Direction.South));
-            break;
-    }
+    //Console.WriteLine(printEnergised(energised));
+    var part1 = energised.Where(kvp => kvp.Value != 0).Count();
+    Console.WriteLine($"Part1: {part1}");
 }
 
-Console.WriteLine(printEnergised(energised));
-var part1 = energised.Where(kvp => kvp.Value != 0).Count();
-Console.WriteLine($"Part1: {part1}");
+var part2 = -1;
+for (int r = 0; r < R; r++)
+{
+    var beams = new Queue<Beam>();
+    beams.Enqueue(new Beam(new Point(r, 0), Direction.East));
+    var energised = solve(beams);
+    part2 = Math.Max(part2, energised.Where(kvp => kvp.Value != 0).Count());
+    
+    beams.Enqueue(new Beam(new Point(r, C - 1), Direction.West));
+    energised = solve(beams);
+    part2 = Math.Max(part2, energised.Where(kvp => kvp.Value != 0).Count());
+}
+for (int c = 0; c < C; c++)
+{
+    var beams = new Queue<Beam>();
+    beams.Enqueue(new Beam(new Point(0, c), Direction.South));
+    var energised = solve(beams);
+    part2 = Math.Max(part2, energised.Where(kvp => kvp.Value != 0).Count());
+
+    beams.Enqueue(new Beam(new Point(R - 1, c), Direction.North));
+    energised = solve(beams);
+    part2 = Math.Max(part2, energised.Where(kvp => kvp.Value != 0).Count());
+}
+
+Console.WriteLine($"Part2: {part2}");
+
+Dictionary<Point, int> solve(Queue<Beam> beams)
+{
+    var energised = Enumerable.Range(0, R).SelectMany(r => Enumerable.Range(0, C).Select(c => new Point(r, c))).ToDictionary(p => p, _ => 0);
+
+    while (beams.Any())
+    {
+        var beam = beams.Dequeue();
+
+        if (beam.point.r < 0 || beam.point.c < 0 || beam.point.r >= R || beam.point.c >= C)
+            continue;
+
+        if ((energised[beam.point] & (int)beam.dir) > 0)
+            continue;
+
+        energised[beam.point] = energised[beam.point] | (int)beam.dir;
+
+        switch ((beam.dir, grid[beam.point.r][beam.point.c]))
+        {
+            case (_, '.'):
+            case (Direction.North, '|'):
+            case (Direction.South, '|'):
+            case (Direction.West, '-'):
+            case (Direction.East, '-'):
+                beams.Enqueue(next(beam.point, beam.dir));
+                break;
+            case (Direction.North, '/'):
+                beams.Enqueue(next(beam.point, Direction.East));
+                break;
+            case (Direction.East, '/'):
+                beams.Enqueue(next(beam.point, Direction.North));
+                break;
+            case (Direction.South, '/'):
+                beams.Enqueue(next(beam.point, Direction.West));
+                break;
+            case (Direction.West, '/'):
+                beams.Enqueue(next(beam.point, Direction.South));
+                break;
+            case (Direction.North, '\\'):
+                beams.Enqueue(next(beam.point, Direction.West));
+                break;
+            case (Direction.East, '\\'):
+                beams.Enqueue(next(beam.point, Direction.South));
+                break;
+            case (Direction.South, '\\'):
+                beams.Enqueue(next(beam.point, Direction.East));
+                break;
+            case (Direction.West, '\\'):
+                beams.Enqueue(next(beam.point, Direction.North));
+                break;
+            case (Direction.North, '-'):
+            case (Direction.South, '-'):
+                beams.Enqueue(next(beam.point, Direction.West));
+                beams.Enqueue(next(beam.point, Direction.East));
+                break;
+            case (Direction.West, '|'):
+            case (Direction.East, '|'):
+                beams.Enqueue(next(beam.point, Direction.North));
+                beams.Enqueue(next(beam.point, Direction.South));
+                break;
+        }
+    }
+
+    return energised;
+}
 
 string printEnergised(Dictionary<Point, int> energised)
 {
