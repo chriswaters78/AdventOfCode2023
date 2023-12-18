@@ -25,6 +25,8 @@ var queue = new Queue<Complex>();
 queue.Enqueue(new Complex(R0, C0));
 while (queue.Any())
 {
+    var curr = queue.Dequeue();
+
     foreach (var mv in new[] { move('R'), move('L'), move('D'), move('U') })
     {
         var next = curr + mv;
