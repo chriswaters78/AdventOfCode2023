@@ -1,11 +1,7 @@
-﻿//px{a<2006:qkq, m>2090:A, rfg}
+﻿var lines = File.ReadAllText("input.txt").Split($"{Environment.NewLine}{Environment.NewLine}").ToArray();
 
+//px{a<2006:qkq, m>2090:A, rfg}
 //{ x = 787,m = 2655,a = 1222,s = 2876}
-
-using System.Runtime.InteropServices;
-
-var lines = File.ReadAllText("input.txt").Split($"{Environment.NewLine}{Environment.NewLine}").ToArray();
-
 var rules = lines[0].Split($"{Environment.NewLine}").Select(line =>
 {
     var sp = line.Trim('}').Split("{");
@@ -34,128 +30,62 @@ var distinct = rules.SelectMany(tp => tp.Value.Where(tp => tp.o != '_').Select(t
     .GroupBy(tp => tp.p)
     .ToDictionary(grp => grp.Key, grp => grp.Select(tp => tp.Item2).ToList());
 
-Console.WriteLine($"Part1: {part1()}");
-Console.WriteLine($"Part2: {part2()}");
+var part1Accepted = inputs.Select(item => new ItemRange("in", item.x, item.x, item.m, item.m, item.a, item.a, item.s, item.s)).SelectMany(solve).ToList();
+var part1 = part1Accepted.Sum(ir => ir.minx + ir.minm + ir.mina + ir.mins);
 
-long part2()
-{
-    var itemRange = new ItemRange("in", 1, 4000, 1, 4000, 1, 4000, 1, 4000);
+Console.WriteLine($"Part1: {part1}");
 
-    var stack = new Stack<ItemRange>();
-    Dictionary<ItemRange, bool> accepted = new Dictionary<ItemRange, bool>();
-    stack.Push(itemRange);
-    while (stack.Any())
-    {
-        var curr = stack.Pop();
-
-        if (curr.key == "A" || curr.key == "R")
-        {
-            accepted.Add(curr, curr.key == "A");
-            continue;
-        }
-
-        var patterns = rules[curr.key];
-        foreach (var pattern in patterns)
-        {
-            switch (pattern.o)
-            {
-                //eg x < 1500
-                //maxx is 1499
-                case '<':
-                    var next1 = setValue(curr, pattern.next, pattern.p, 1, pattern.v - 1);
-                    stack.Push(next1);
-                    curr = setValue(curr, curr.key, pattern.p, pattern.v, 4000);
-                    break;
-                //eg x > 1500
-                //minx is 1501
-                case '>':
-                    var next2 = setValue(curr, pattern.next, pattern.p, pattern.v + 1, 4000);
-                    stack.Push(next2);
-                    curr = setValue(curr, curr.key, pattern.p, 1, pattern.v);
-                    break;
-                case '_':
-                    stack.Push(curr with { key = pattern.next });
-                    goto done;
-            }
-        }
-    done:;
-    }
-
-    long part2 = 0;
-    foreach (var ir in accepted.Where(kvp => kvp.Value))
-    {
-        long x = (ir.Key.maxx - ir.Key.minx + 1);
-        long m = (ir.Key.maxm - ir.Key.minm + 1);
-        long a = (ir.Key.maxa - ir.Key.mina + 1);
-        long s = (ir.Key.maxs - ir.Key.mins + 1);
-        if (x > 0 && m > 0 && a > 0 && s > 0)
-        {
-            part2 += x * m * a * s;
-        }
-    }
-
-    return part2;
-}
+var part2Accepted = solve(new ItemRange("in", 1, 4000, 1, 4000, 1, 4000, 1, 4000));
+var part2 = part2Accepted.Sum(part2Sum);
 
 Console.WriteLine($"Part2: {part2}");
 
-long part1()
+List<ItemRange> solve(ItemRange initial)
 {
-    var accepted = new HashSet<Item>();
-    foreach (var input in inputs)
+    var stack = new Stack<ItemRange>();
+    var accepted = new List<ItemRange>();
+    stack.Push(initial);
+    while (stack.Any())
     {
-        string next = "in";
-        while (true)
+        switch (stack.Pop())
         {
-            var curr = rules[next];
-            foreach (var pattern in curr)
-            {
-                if (pattern.o == '_')
+            case var curr when curr.key == "A":
+                if (hasAny(curr))
                 {
-                    next = pattern.next;
-                    break;
+                    accepted.Add(curr);
                 }
-
-                var pv = pattern.p switch
+                continue;
+            case var curr when curr.key == "R":
+                continue;
+            case var curr:
+                var patterns = rules[curr.key];
+                foreach (var pattern in patterns)
                 {
-                    'x' => input.x,
-                    'm' => input.m,
-                    'a' => input.a,
-                    's' => input.s,
-                };
-
-                switch (pattern.o)
-                {
-                    case '<':
-                        if (pv < pattern.v)
-                        {
-                            next = pattern.next;
-                            goto done;
-                        }
-                        break;
-                    case '>':
-                        if (pv > pattern.v)
-                        {
-                            next = pattern.next;
-                            goto done;
-                        }
-                        break;
+                    switch (pattern.o)
+                    {
+                        //eg x < 1500
+                        //maxx is 1499
+                        case '<':
+                            stack.Push(setValue(curr, pattern.next, pattern.p, 1, pattern.v - 1));
+                            curr = setValue(curr, curr.key, pattern.p, pattern.v, 4000);
+                            break;
+                        //eg x > 1500
+                        //minx is 1501
+                        case '>':
+                            stack.Push(setValue(curr, pattern.next, pattern.p, pattern.v + 1, 4000));
+                            curr = setValue(curr, curr.key, pattern.p, 1, pattern.v);
+                            break;
+                        case '_':
+                            stack.Push(curr with { key = pattern.next });
+                            break;
+                    }
                 }
-            }
-        done:;
+                break;
 
-            if (next == "A")
-            {
-                accepted.Add(input);
-                break;
-            }
-            else if (next == "R")
-            {
-                break;
-            }
         }
     }
-    return accepted.Sum(item => item.x + item.m + item.a + item.s);
+
+    return accepted;
 }
 
 ItemRange setValue(ItemRange ir, string key, char p, int min, int max) => p switch
@@ -165,6 +95,20 @@ ItemRange setValue(ItemRange ir, string key, char p, int min, int max) => p swit
     'a' => ir with { key = key, mina = Math.Max(ir.mina, min), maxa = Math.Min(ir.maxa, max) },
     's' => ir with { key = key, mins = Math.Max(ir.mins, min), maxs = Math.Min(ir.maxs, max) },
 };
+
+bool hasAny(ItemRange ir)
+{
+    var values = getValues(ir);
+    return values.x > 0 && values.m > 0 && values.a > 0 && values.s > 0;
+}
+
+long part2Sum(ItemRange ir)
+{
+    var values = getValues(ir);
+    return values.x * values.m * values.a * values.s;
+}
+
+(long x, long m, long a, long s) getValues (ItemRange ir) => (ir.maxx - ir.minx + 1, ir.maxm - ir.minm + 1, ir.maxa - ir.mina + 1, ir.maxs - ir.mins + 1);
 
 record struct Item (int x, int m, int a, int s);
 record struct ItemRange(string key, int minx, int maxx, int minm, int maxm, int mina, int maxa, int mins, int maxs);
