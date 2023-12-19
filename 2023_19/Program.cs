@@ -1,42 +1,26 @@
 ﻿var lines = File.ReadAllText("input.txt").Split($"{Environment.NewLine}{Environment.NewLine}").ToArray();
+var mappings = "xmas".Select((ch, i) => (ch, i)).ToDictionary(tp => tp.ch, tp => tp.i);
 
 //px{a<2006:qkq, m>2090:A, rfg}
+var rules = (from line in lines[0].Split($"{Environment.NewLine}")
+             let sp = line.Trim('}').Split("{")
+             select (sp[0], sp[1].Split(",").Select(pattern => pattern.Split(":") 
+                 switch {
+                    [var clause, var next] => (mappings[clause[0]], clause[1], int.Parse(clause[2..]), next),
+                    [var next] => (-1, '_', 0, next),
+                 }).ToList())).ToDictionary(tp => tp.Item1, tp => tp.Item2);
+
 //{ x = 787,m = 2655,a = 1222,s = 2876}
-var rules = lines[0].Split($"{Environment.NewLine}").Select(line =>
-{
-    var sp = line.Trim('}').Split("{");
-    var key = sp[0];
-    var patterns = new List<(char p, char o, int v, string next)>();
-    foreach (var pattern in sp[1].Split(","))
-    {
-        if (pattern.Contains(":"))
-        {
-            var sp2 = pattern.Split(":");
-            patterns.Add((sp2[0][0], sp2[0][1], int.Parse(sp2[0][2..]), sp2[1]));
-        }
-        else
-        {
-            patterns.Add(('_', '_', 0, pattern));
-        }
-    }
+var inputs = lines[1].Split($"{Environment.NewLine}").Select(line => line.Trim('{', '}').Split(",")).Select(
+    arr => arr.Select(str => int.Parse(str[2..])).ToArray()).ToList();
 
-    return (key, patterns);
-}).ToDictionary(tp => tp.key, tp => tp.patterns);
-
-var inputs = lines[1].Split($"{Environment.NewLine}").Select(line => line.Trim('{').Trim('}').Split(",")).Select(
-    arr => new Item(int.Parse(arr[0][2..]), int.Parse(arr[1][2..]), int.Parse(arr[2][2..]), int.Parse(arr[3][2..])));
-
-var distinct = rules.SelectMany(tp => tp.Value.Where(tp => tp.o != '_').Select(tp => (tp.p, tp.o == '<' ? tp.v - 1 : tp.v + 1)))
-    .GroupBy(tp => tp.p)
-    .ToDictionary(grp => grp.Key, grp => grp.Select(tp => tp.Item2).ToList());
-
-var part1Accepted = inputs.Select(item => new ItemRange("in", item.x, item.x, item.m, item.m, item.a, item.a, item.s, item.s)).SelectMany(solve).ToList();
-var part1 = part1Accepted.Sum(ir => ir.minx + ir.minm + ir.mina + ir.mins);
-
+var part1 = inputs.Select(item => new ItemRange("in", new[,] { { item[0], item[0] }, { item[1], item[1] }, { item[2], item[2] }, { item[3], item[3] } }))
+    .SelectMany(solve)
+    .Sum(ir => Enumerable.Range(0,4).Sum(i => ir.ranges[i,0]));
 Console.WriteLine($"Part1: {part1}");
 
-var part2Accepted = solve(new ItemRange("in", 1, 4000, 1, 4000, 1, 4000, 1, 4000));
-var part2 = part2Accepted.Sum(part2Sum);
+var part2 = solve(new ItemRange("in", new[,] { { 1, 4000 }, { 1, 4000 }, { 1, 4000 }, { 1, 4000 } }))
+    .Sum(ir => Enumerable.Range(0, 4).Aggregate(1L, (acc, i) => acc * (ir.ranges[i, 1] - ir.ranges[i, 0] + 1)));
 
 Console.WriteLine($"Part2: {part2}");
 
@@ -49,34 +33,33 @@ List<ItemRange> solve(ItemRange initial)
     {
         switch (stack.Pop())
         {
+            case var curr when isEmpty(curr):
+                continue;
             case var curr when curr.key == "A":
-                if (hasAny(curr))
-                {
-                    accepted.Add(curr);
-                }
+                accepted.Add(curr);
                 continue;
             case var curr when curr.key == "R":
                 continue;
             case var curr:
                 var patterns = rules[curr.key];
-                foreach (var pattern in patterns)
+                foreach ((int p, char o, int v, string next) in patterns)
                 {
-                    switch (pattern.o)
+                    switch (o)
                     {
                         //eg x < 1500
                         //maxx is 1499
                         case '<':
-                            stack.Push(setValue(curr, pattern.next, pattern.p, 1, pattern.v - 1));
-                            curr = setValue(curr, curr.key, pattern.p, pattern.v, 4000);
+                            stack.Push(cloneWithNewLimits(curr, next, p, 1, v - 1));
+                            curr = cloneWithNewLimits(curr, curr.key, p, v, 4000);
                             break;
                         //eg x > 1500
                         //minx is 1501
                         case '>':
-                            stack.Push(setValue(curr, pattern.next, pattern.p, pattern.v + 1, 4000));
-                            curr = setValue(curr, curr.key, pattern.p, 1, pattern.v);
+                            stack.Push(cloneWithNewLimits(curr, next, p, v + 1, 4000));
+                            curr = cloneWithNewLimits(curr, curr.key, p, 1, v);
                             break;
                         case '_':
-                            stack.Push(curr with { key = pattern.next });
+                            stack.Push(curr with { key = next });
                             break;
                     }
                 }
@@ -88,29 +71,14 @@ List<ItemRange> solve(ItemRange initial)
     return accepted;
 }
 
-ItemRange setValue(ItemRange ir, string key, char p, int min, int max) => p switch
+ItemRange cloneWithNewLimits(ItemRange ir, string key, int p, int min, int max)
 {
-    'x' => ir with { key = key, minx = Math.Max(ir.minx, min), maxx = Math.Min(ir.maxx, max) },
-    'm' => ir with { key = key, minm = Math.Max(ir.minm, min), maxm = Math.Min(ir.maxm, max) },
-    'a' => ir with { key = key, mina = Math.Max(ir.mina, min), maxa = Math.Min(ir.maxa, max) },
-    's' => ir with { key = key, mins = Math.Max(ir.mins, min), maxs = Math.Min(ir.maxs, max) },
+    var newIr = ir with { key = key, ranges = (int[,]) ir.ranges.Clone() };
+    newIr.ranges[p, 0] = Math.Max(ir.ranges[p, 0], min);
+    newIr.ranges[p, 1] = Math.Min(ir.ranges[p, 1], max);
+    return newIr;
 };
 
-bool hasAny(ItemRange ir)
-{
-    var values = getValues(ir);
-    return values.x > 0 && values.m > 0 && values.a > 0 && values.s > 0;
-}
+bool isEmpty(ItemRange ir) => Enumerable.Range(0, 4).Any(i => ir.ranges[i, 1] < ir.ranges[i, 0]);
 
-long part2Sum(ItemRange ir)
-{
-    var values = getValues(ir);
-    return values.x * values.m * values.a * values.s;
-}
-
-(long x, long m, long a, long s) getValues (ItemRange ir) => (ir.maxx - ir.minx + 1, ir.maxm - ir.minm + 1, ir.maxa - ir.mina + 1, ir.maxs - ir.mins + 1);
-
-record struct Item (int x, int m, int a, int s);
-record struct ItemRange(string key, int minx, int maxx, int minm, int maxm, int mina, int maxa, int mins, int maxs);
-
-
+record struct ItemRange(string key, int[,] ranges);
