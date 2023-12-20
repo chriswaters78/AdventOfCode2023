@@ -19,26 +19,15 @@ var inputs = modules.Values.ToDictionary(m => m.name, m => modules.Values.Where(
 
 var finalConjunctions = new[] { "db", "ln", "vq", "tf" }.ToDictionary(str => str, _ => -1L);
 
-(long part1L, long part1H, BigInteger part2) = (0, 0, 0);
+(long part1L, long part1H) = (0, 0);
 for (long press = 1; press <= long.MaxValue; press++) 
 {
-    if (press == 1001) Console.WriteLine($"Part1: {part1H * part1L}");
-
-    if (finalConjunctions.All(kvp => kvp.Value != -1))
-    {
-        //apparently they are always primes for the puzzle inputs
-        part2 = finalConjunctions.Values.Aggregate((i1,i2) => i1 * i2)
-            / finalConjunctions.Values.Select(i => (BigInteger) i).Aggregate(BigInteger.GreatestCommonDivisor);
-        
-        Console.WriteLine($"Part2: {part2}");
-        return;
-    }
-
     var queue = new Queue<Signal>( new[] { new Signal("broadcaster", false) });
     while (queue.Count > 0)
     {
         var current = queue.Dequeue();
         
+        //record what we need to know to answer the question
         if (current.signal) part1H++; else part1L++;
         if (!current.signal && finalConjunctions.TryGetValue(current.to, out long lastFired) && lastFired == -1)
             finalConjunctions[current.to] = press;
@@ -63,13 +52,21 @@ for (long press = 1; press <= long.MaxValue; press++)
             queue.Enqueue(new Signal(output, signalOutput));
         }
     }
+
+    //check if we are done on either part
+    if (press == 1000) Console.WriteLine($"Part1: {part1H * part1L}");
+    if (finalConjunctions.All(kvp => kvp.Value != -1))
+    {
+        //we have found the cycle length for our four outputs
+        //apparently they are always primes for the puzzle inputs but find the LCM in case they are not
+        var part2 = finalConjunctions.Values.Aggregate((i1, i2) => i1 * i2)
+            / finalConjunctions.Values.Select(i => (BigInteger)i).Aggregate(BigInteger.GreatestCommonDivisor);
+
+        Console.WriteLine($"Part2: {part2}");
+        return;
+    }
 }
 
 record struct Module(Type type, string name, List<string> outputs);
 record struct Signal(string to, bool signal);
-enum Type
-{
-    Broadcaster,
-    Conjunction,
-    Flipflop
-}
+enum Type { Broadcaster, Conjunction, Flipflop }
