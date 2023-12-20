@@ -17,8 +17,7 @@ var modules = File.ReadAllLines("input.txt").Select(line => {
 var states = modules.Keys.ToDictionary(name => name, _ => false);
 var inputs = modules.Values.ToDictionary(m => m.name, m => modules.Values.Where(input => input.outputs.Any(output => m.name == output)).Select(input => input.name).ToList());
 
-var finalConjunctions = new[] { "db", "ln", "vq", "tf" };
-var finalConjunctionsFiredAt = finalConjunctions.ToDictionary(str => str, _ => -1L);
+var finalConjunctionsFiredAt = new[] { "db", "ln", "vq", "tf" }.ToDictionary(str => str, _ => -1L);
 
 (long part1L, long part1H, BigInteger part2) = (0, 0, 0);
 for (long press = 1; press <= long.MaxValue; press++) 
