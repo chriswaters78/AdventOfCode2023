@@ -1,0 +1,16 @@
+﻿broadcaster -> km
+%km -> tp, dr
+%dr -> kg
+%kg -> lv
+%lv -> jc, tp
+%jc -> tp, qr
+%qr -> dk
+%dk -> tp, vj
+%vj -> ps
+%ps -> xf, tp
+%xf -> bd, tp
+%bd -> tp, gg
+%gg -> tp
+&tp -> km, dr, kg, qr, vj, db
+&db -> tg
+&tg -> rx

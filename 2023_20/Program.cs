@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Text;
+﻿using System.Numerics;
 
 var stateFlipFlop = new Dictionary<string, bool>();
 var stateConjunction = new Dictionary<string, Dictionary<string,bool>>();
@@ -34,51 +33,40 @@ var modules = File.ReadAllLines("input.txt").Select(line => {
 foreach (var conj in stateConjunction.Keys)
 {
     //find all modules that connect to this
-    foreach (var input in modules.Where(kvp => kvp.Value.targets.Contains(conj)))
+    foreach (var input in modules.Where(kvp => kvp.Value.outputs.Contains(conj)))
     {
         stateConjunction[conj].Add(input.Key, false);
     }
 }
 
 var signals = new Queue<Signal>();
-
 long part1L = 0;
 long part1H = 0;
-long part2 = 0;
-int maxTp = 0;
-for (long press = 1; press < long.MaxValue; press++)
-{
-    //Console.WriteLine($"Press {press}, lv = {stateFlipFlop["lv"]}, predicted {(press / 8) % 2 == 1}");
+long part1 = 0;
+BigInteger part2 = 0;
 
-    //var tpCount = cjCount("vd");
-    //if (tpCount > maxTp)
-    //{
-    //    maxTp = tpCount;
-    //    Console.WriteLine($"vd count {cjCount("vd")} out of {stateConjunction["vd"].Values.Count()} at press {press}");
-    //}
-    //if (cjOn("vd"))
-    //{
-    //    Console.WriteLine($"vd on at {press}");
-    //}
-    //Console.WriteLine(printSingleCJ("tp"));
-    //Console.WriteLine(printSingleCJ("bk"));
-    //Console.WriteLine(printSingleCJ("pt"));
-    //Console.WriteLine(printSingleCJ("vd"));
-    //Console.WriteLine(printF(stateFlipFlop));
-    //Console.WriteLine(printC(stateConjunction));
+var finalConjunctions = new[] { "db", "ln", "vq", "tf" };
+var finalConjunctionsFiredAt = finalConjunctions.ToDictionary(str => str, _ => -1L);
+
+for (long press = 1; press <= long.MaxValue; press++)
+{
+    if (press == 1001)
+    {
+        part1 = part1H * part1L;
+    }
+    if (finalConjunctionsFiredAt.All(kvp => kvp.Value != -1))
+    {
+        var numerator = finalConjunctionsFiredAt.Values.Aggregate(1L, (acc, i) => acc * i);
+        var denominator = finalConjunctionsFiredAt.Values.Select(i => new BigInteger(i)).Aggregate(BigInteger.GreatestCommonDivisor);
+        part2 = numerator / denominator;
+        goto done;
+    }
+
     part1L++;
     signals.Enqueue(new Signal("button", "broadcaster", false));
     while (signals.Count > 0)
     {
         var curr = signals.Dequeue();
-        if (curr.to == "rx" )
-        {
-            if (!curr.signal)
-            {
-                part2 = press;
-                goto done;
-            }
-        }
         if (!modules.ContainsKey(curr.to))
         {
             continue;
@@ -87,7 +75,7 @@ for (long press = 1; press < long.MaxValue; press++)
         switch (targetModule.type)
         {
             case Type.Broadcaster:
-                foreach (var target in targetModule.targets) 
+                foreach (var target in targetModule.outputs)
                 {
                     if (curr.signal)
                         part1H++;
@@ -99,8 +87,12 @@ for (long press = 1; press < long.MaxValue; press++)
             case Type.Conjunction:
                 stateConjunction[targetModule.name][curr.from] = curr.signal;
                 var output = !stateConjunction[targetModule.name].Values.All(b => b);
-                foreach (var target in targetModule.targets)
+                foreach (var target in targetModule.outputs)
                 {
+                    if (!output && finalConjunctions.Contains(target) && finalConjunctionsFiredAt[target] == -1)
+                    {
+                        finalConjunctionsFiredAt[target] = press;
+                    }
                     if (output)
                         part1H++;
                     else
@@ -112,7 +104,7 @@ for (long press = 1; press < long.MaxValue; press++)
                 if (curr.signal)
                     continue;
                 stateFlipFlop[targetModule.name] = !stateFlipFlop[targetModule.name];
-                foreach (var target in targetModule.targets)
+                foreach (var target in targetModule.outputs)
                 {
                     if (stateFlipFlop[targetModule.name])
                         part1H++;
@@ -125,52 +117,10 @@ for (long press = 1; press < long.MaxValue; press++)
     }
 }
 done:;
-Console.WriteLine($"Part2: {part2}");
-var part1 = part1H * part1L;
-
 Console.WriteLine($"Part1: {part1}");
+Console.WriteLine($"Part2: {part2}");
 
-bool cjOn(string cj) => stateConjunction[cj].Values.All(b => b);
-int cjCount(string cj) => stateConjunction[cj].Values.Count(b => b);
-
-string printSingleCJ(string cj)
-{
-    StringBuilder sb = new StringBuilder();
-    sb.AppendLine($"Conjunctions {cj}:");
-    foreach (var kvp in stateConjunction[cj].OrderBy(kvp3 => kvp3.Key))
-    {
-        sb.Append($"{kvp.Key}={kvp.Value},");
-    }
-    return sb.ToString();
-}
-
-string printF(Dictionary<string, bool> flipFlops)
-{
-    StringBuilder sb = new StringBuilder();
-    sb.Append("FlipFlops: ");
-    foreach (var kvp in flipFlops.OrderBy(kvp => kvp.Key))
-    {
-        sb.Append($"{kvp.Key}={kvp.Value},");
-    }
-    return sb.ToString();
-}
-string printC(Dictionary<string, Dictionary<string,bool>> conjunctions)
-{
-    StringBuilder sb = new StringBuilder();
-    sb.AppendLine("Conjunctions:");
-    foreach (var kvp in conjunctions.OrderBy(kvp => kvp.Key))
-    {
-        sb.Append($"Key: {kvp.Key}");
-        foreach (var kvp2 in kvp.Value.OrderBy(kvp3 => kvp3.Key))
-        {
-            sb.Append($"{kvp2.Key}={kvp2.Value},");
-        }
-        sb.AppendLine();
-    }
-    return sb.ToString();
-}
-
-record struct Module(Type type, string name, List<string> targets);
+record struct Module(Type type, string name, List<string> outputs);
 record struct Signal(string from, string to, bool signal);
 enum Type
 {
