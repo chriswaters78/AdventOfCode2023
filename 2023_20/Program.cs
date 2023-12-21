@@ -13,6 +13,7 @@ var modules = File.ReadAllLines("input.txt").Select(line => {
             return new Module(Type.Broadcaster, "broadcaster", outputs);
     };
 }).ToDictionary(md => md.name, md => md);
+modules.Add("rx", new Module(Type.Broadcaster, "rx", new List<string>()));
 
 var states = modules.Keys.ToDictionary(name => name, _ => false);
 var inputs = modules.Values.ToDictionary(m => m.name, m => modules.Values.Where(input => input.outputs.Any(output => m.name == output)).Select(input => input.name).ToList());
@@ -32,16 +33,13 @@ for (long press = 1; press <= long.MaxValue; press++)
         if (!current.signal && finalConjunctions.TryGetValue(current.to, out long lastFired) && lastFired == -1)
             finalConjunctions[current.to] = press;
 
-        if (!modules.ContainsKey(current.to))
-            continue;
-
         var module = modules[current.to];      
         if (module.type == Type.Flipflop && current.signal)
             continue;
 
         var signalOutput = module.type switch
         {
-            Type.Broadcaster => false,
+            Type.Broadcaster => current.signal,
             Type.Conjunction => !inputs[module.name].All(input => states[input]),
             Type.Flipflop => !states[module.name],
         };
