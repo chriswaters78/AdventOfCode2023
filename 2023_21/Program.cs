@@ -14,7 +14,17 @@ var offsets = new Point[] { new Point(1, 0), new Point(0, 1), new Point(-1, 0), 
 
 //full grid = 7521
 
-
+for (int i = 0; i < 202301; i++)
+{
+    if (i == 0)
+    {
+        //top corner
+    }
+    else if (i <= 101150)
+    {
+        //we have a /...\
+    }
+}
 
 return;
 
