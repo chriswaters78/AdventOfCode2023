@@ -3,8 +3,8 @@ using System.Numerics;
 using System.Text;
 
 var grid = File.ReadAllLines("input.txt").SelectMany((str, r) => str.Select((ch, c) => (ch, new Point(r, c)))).ToDictionary(tp => tp.Item2, tp => tp.ch);
-int toReach = 64;
-var maxI = (int)Math.Log2(toReach) + 1;
+int maxToReach = 130;
+var maxI = (int)Math.Log2(maxToReach);
 
 (int R, int C) = (grid.Keys.Max(p => p.r) + 1, grid.Keys.Max(p => p.c) + 1);
 var start = grid.Where(kvp => kvp.Value == 'S').Single().Key;
@@ -12,7 +12,14 @@ grid[start] = '.';
 
 var offsets = new Point[] { new Point(1, 0), new Point(0, 1), new Point(-1, 0), new Point(0, -1) };
 
-var canReachIn = new HashSet<Point>[maxI][,];
+//full grid = 7521
+
+
+
+return;
+
+//canReach[i] = points we can reach in 2^i steps
+var canReachIn = new HashSet<Point>[maxI + 1][,];
 canReachIn[0] = new HashSet<Point>[R, C];
 
 foreach (var key in grid.Keys)
@@ -24,7 +31,7 @@ foreach (var key in grid.Keys)
     }
 }
 
-for (int i = 1; i < maxI; i++)
+for (int i = 1; i <= maxI; i++)
 {
     var step = (int)Math.Pow(2, i);
     canReachIn[i] = new HashSet<Point>[R, C];
@@ -60,37 +67,39 @@ for (int i = 1; i < maxI; i++)
     Console.WriteLine(print(i));
 }
 
-var canReach = new HashSet<Point>();
-var dec = toReach;
-for (int i = maxI - 1; i >= 0; i--)
+for (var toReach = 1; toReach <= maxToReach; toReach++)
 {
-    var step = (int) Math.Pow(2, i);
-    if (dec / step > 0)
+    var canReach = new HashSet<Point>();
+    var dec = toReach;
+    for (int i = maxI; i >= 0; i--)
     {
-        if (canReach.Count == 0)
+        var step = (int)Math.Pow(2, i);
+        if (dec / step > 0)
         {
-            canReach = new HashSet<Point>(canReachIn[i][start.r, start.c]);
-        }
-        else
-        {
-            var newCanReach = new HashSet<Point>();
-            foreach (var p1 in canReach)
+            if (canReach.Count == 0)
             {
-                foreach (var p2 in canReachIn[i][p1.r, p1.c])
-                {
-                    newCanReach.Add(p2);
-                }
+                canReach = new HashSet<Point>(canReachIn[i][start.r, start.c]);
             }
-            canReach = newCanReach;
+            else
+            {
+                var newCanReach = new HashSet<Point>();
+                foreach (var p1 in canReach)
+                {
+                    foreach (var p2 in canReachIn[i][p1.r, p1.c])
+                    {
+                        newCanReach.Add(p2);
+                    }
+                }
+                canReach = newCanReach;
+            }
+            dec -= step;
         }
-        dec -= step;
     }
+
+    Console.WriteLine($"Found final grid for {toReach} steps, {canReach.Count} total");
+    Console.WriteLine(printA(canReach));
 }
 
-Console.WriteLine($"Found final grid for {toReach} steps");
-Console.WriteLine(printA(canReach));
-
-Console.WriteLine($"Part1: {canReach.Count}");
 string printA(HashSet<Point> points)
 {
     StringBuilder sb = new StringBuilder();
