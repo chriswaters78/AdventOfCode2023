@@ -10,45 +10,93 @@ var grid = File.ReadAllLines("input.txt")
 var start = new Complex(0,Enumerable.Range(0, C).Where(c => grid[new Complex(0, c)] == '.').Single());
 var end = new Complex(R, Enumerable.Range(0, C).Where(c => grid[new Complex(R, c)] == '.').Single());
 
+var graph = buildGraph();
+Console.WriteLine($"Graph nodes: {graph.Keys.Count}");
 
-var queue = new Queue<State>();
-queue.Enqueue(new State(new Complex(0, 1), [new Complex(-1,1)]));
+var queue = new Queue<GState>();
+queue.Enqueue(new GState(start, [start], 0));
 
-var finished = new List<List<Complex>>();
+int maxLength = 0;
 while (queue.Count > 0)
 {
-    var curr = queue.Dequeue();
+    var state = queue.Dequeue();
 
-    if (curr.p == end)
+    if (state.curr == end)
     {
         //we are done, remove first two 'non steps' and add the final step onto the taken list
-        finished.Add(curr.taken.Skip(2).Concat([curr.p]).ToList());
+        if (state.length > maxLength)
+        {
+            maxLength = state.length;
+            Console.WriteLine($"Max: {maxLength}");
+        }
         continue;
     }
 
-    var next = offsets.Select(os => os + curr.p)
-        .Where(n => curr.p.Real >= 0 && curr.taken.Last() != n)        
-        .Where(n => grid[n] switch
-        {
-            '#' => false,
-            '.' => true,
-            'v' when n.Real - curr.p.Real == 0 => throw new(),
-            'v' => n.Real - curr.p.Real > 0,
-            '>' when n.Imaginary - curr.p.Imaginary == 0 => throw new(),
-            '>' => n.Imaginary - curr.p.Imaginary > 0,
-            '<' => throw new(),
-            '^' => throw new(),
-        })
-        .ToList();
-
-    foreach (var n in next)
+    foreach (var n in graph[state.curr])
     {
-        queue.Enqueue(new State(n, curr.taken.Concat([curr.p]).ToList()));
+        //no backtracking
+        if (state.visited.Contains(n.to)) 
+            continue;
+
+        var newVisited = state.visited.ToHashSet();
+        newVisited.Add(n.to);
+        queue.Enqueue(new GState(n.to, newVisited, state.length + n.length));
     }
 }
 
-Console.WriteLine($"Found {finished.Count} paths");
-var part1 = finished.Max(taken => taken.Count);
-Console.WriteLine($"Part1: {part1}");
+Console.WriteLine($"Part2: {maxLength}");
 
-record struct State (Complex p, List<Complex> taken);
+Dictionary<Complex, HashSet<Edge>> buildGraph()
+{
+    var queue = new Queue<State>();
+    queue.Enqueue(new State(start, new Complex(-1, 1), start, 0));
+    var graph = new Dictionary<Complex, HashSet<Edge>>();
+    graph.Add(start, new HashSet<Edge>());
+    while (queue.Count > 0)
+    {
+        var curr = queue.Dequeue();
+
+        if (curr.p == end)
+        {
+            graph[curr.p] = new HashSet<Edge>();
+            graph[curr.p].Add(new Edge(curr.lastJunction, curr.stepsSinceLastJunction));
+            graph[curr.lastJunction].Add(new Edge(curr.p, curr.stepsSinceLastJunction));
+            continue;
+        }
+
+        var next = offsets.Select(os => os + curr.p)
+            //no backtracking
+            .Where(n => n != curr.lastPosition)
+            .Where(n => grid[n] switch
+            {
+                '#' => false,
+                _ => true,
+            })
+            .ToList();
+
+        if (next.Count > 1)
+        {
+            //we have found a junction from lastJunction to here so add to the graph
+            if (!graph.ContainsKey(curr.p))
+            {
+                graph[curr.p] = new HashSet<Edge>();
+                foreach (var n in next)
+                {
+                    queue.Enqueue(new State(n, curr.p, curr.p,1));
+                }
+            }
+            graph[curr.lastJunction].Add(new Edge(curr.p, curr.stepsSinceLastJunction));
+            graph[curr.p].Add(new Edge(curr.lastJunction, curr.stepsSinceLastJunction));
+        }
+        else if (next.Count == 1)
+        {
+            queue.Enqueue(new State(next.Single(), curr.p, curr.lastJunction, curr.stepsSinceLastJunction + 1));
+        }
+    }
+    return graph;
+}
+
+record struct Edge(Complex to, int length);
+
+record struct GState(Complex curr, HashSet<Complex> visited, int length);
+record struct State (Complex p, Complex lastPosition, Complex lastJunction, int stepsSinceLastJunction);
