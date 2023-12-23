@@ -1,37 +1,25 @@
-﻿using System.Collections.Generic;
-using System.Numerics;
-var watch = new System.Diagnostics.Stopwatch();
+﻿var watch = new System.Diagnostics.Stopwatch();
 watch.Start();
-List<Complex> offsets = [new Complex(1, 0), new Complex(0, 1), new Complex(-1, 0), new Complex(0, -1)];
 
 var grid = File.ReadAllLines("input.txt");
 
 (int R, int C) = (grid.Length, grid.First().Length);
 
-var allNodes = Enumerable.Range(0, R).SelectMany(r => Enumerable.Range(0, C).Where(
-    c =>    grid[r][c] != '#' && new (int r, int c)[] { (r - 1, c), (r, c - 1), (r + 1, c), (r, c + 1) }.Where(
-                tp => tp.r >= 0 && tp.c >= 0 && tp.r < R && tp.c < C
-                && grid[tp.r][tp.c] != '#')
-            .Count() >= 3).Select( c => (r,c))).ToHashSet();
-
 var start = (0, grid.First().Select((ch, i) => (ch, i)).Where(tp => tp.ch == '.').Single().i);
 var end = (grid.First().Length - 1, grid.Last().Select((ch, i) => (ch, i)).Where(tp => tp.ch == '.').Single().i);
-allNodes.Add(start);
-allNodes.Add(end);
 
-Console.WriteLine($"start: {start}, end: {end}");
-Console.WriteLine(String.Join(",", allNodes.Select(tp => $"({tp.r},{tp.c})")));
-Console.WriteLine($"Node count: {allNodes.Count}");
-
+HashSet<(int r, int c)> allNodes = [start, end,.. Enumerable.Range(0, R).SelectMany(r => Enumerable.Range(0, C).Where(
+    c => grid[r][c] != '#' && new (int r, int c)[] { (r - 1, c), (r, c - 1), (r + 1, c), (r, c + 1) }.Where(
+                tp => tp.r >= 0 && tp.c >= 0 && tp.r < R && tp.c < C
+                && grid[tp.r][tp.c] != '#')
+            .Count() >= 3).Select( c => (r,c)))];
 
 var visited = new HashSet<(int r, int c)>();
 var graph = edgeContraction(false);
 Console.WriteLine($"Part1: {solve(start, 0)} in {watch.ElapsedMilliseconds}ms");
 
-visited.Clear();
 graph = edgeContraction(true);
 Console.WriteLine($"Part2: {solve(start, 0)} in {watch.ElapsedMilliseconds}ms");
-
 
 int solve((int r, int c) current, int length)
 {
