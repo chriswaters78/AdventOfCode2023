@@ -1,102 +1,98 @@
-﻿using System.Numerics;
+﻿using System.Collections.Generic;
+using System.Numerics;
+var watch = new System.Diagnostics.Stopwatch();
+watch.Start();
 List<Complex> offsets = [new Complex(1, 0), new Complex(0, 1), new Complex(-1, 0), new Complex(0, -1)];
 
-var grid = File.ReadAllLines("input.txt")
-    .SelectMany((line, r) => line.Select((ch, c) => (ch, new Complex(r, c))))
-    .ToDictionary(tp => tp.Item2, tp => tp.ch);
+var grid = File.ReadAllLines("input.txt");
 
-(int R, int C) = ((int) grid.Keys.Max(p => p.Real), (int) grid.Keys.Max(p => p.Imaginary));
+(int R, int C) = (grid.Length, grid.First().Length);
 
-var start = new Complex(0,Enumerable.Range(0, C).Where(c => grid[new Complex(0, c)] == '.').Single());
-var end = new Complex(R, Enumerable.Range(0, C).Where(c => grid[new Complex(R, c)] == '.').Single());
+var allNodes = Enumerable.Range(0, R).SelectMany(r => Enumerable.Range(0, C).Where(
+    c =>    grid[r][c] != '#' && new (int r, int c)[] { (r - 1, c), (r, c - 1), (r + 1, c), (r, c + 1) }.Where(
+                tp => tp.r >= 0 && tp.c >= 0 && tp.r < R && tp.c < C
+                && grid[tp.r][tp.c] != '#')
+            .Count() >= 3).Select( c => (r,c))).ToHashSet();
 
-var graph = buildGraph();
-Console.WriteLine($"Graph nodes: {graph.Keys.Count}");
+var start = (0, grid.First().Select((ch, i) => (ch, i)).Where(tp => tp.ch == '.').Single().i);
+var end = (grid.First().Length - 1, grid.Last().Select((ch, i) => (ch, i)).Where(tp => tp.ch == '.').Single().i);
+allNodes.Add(start);
+allNodes.Add(end);
 
-var queue = new Queue<GState>();
-queue.Enqueue(new GState(start, [start], 0));
+Console.WriteLine($"start: {start}, end: {end}");
+Console.WriteLine(String.Join(",", allNodes.Select(tp => $"({tp.r},{tp.c})")));
+Console.WriteLine($"Node count: {allNodes.Count}");
 
-int maxLength = 0;
-while (queue.Count > 0)
+
+var visited = new HashSet<(int r, int c)>();
+var graph = edgeContraction(false);
+Console.WriteLine($"Part1: {solve(start, 0)} in {watch.ElapsedMilliseconds}ms");
+
+visited.Clear();
+graph = edgeContraction(true);
+Console.WriteLine($"Part2: {solve(start, 0)} in {watch.ElapsedMilliseconds}ms");
+
+
+int solve((int r, int c) current, int length)
 {
-    var state = queue.Dequeue();
+    if (current == end)
+        return length;
 
-    if (state.curr == end)
+    int max = int.MinValue;
+    foreach (var n in graph[current])
     {
-        //we are done, remove first two 'non steps' and add the final step onto the taken list
-        if (state.length > maxLength)
-        {
-            maxLength = state.length;
-            Console.WriteLine($"Max: {maxLength}");
-        }
-        continue;
-    }
-
-    foreach (var n in graph[state.curr])
-    {
-        //no backtracking
-        if (state.visited.Contains(n.to)) 
+        if (!visited.Add(n.to))
             continue;
 
-        var newVisited = state.visited.ToHashSet();
-        newVisited.Add(n.to);
-        queue.Enqueue(new GState(n.to, newVisited, state.length + n.length));
+        max = Math.Max(solve(current = n.to, length + n.length), max);
+        visited.Remove(n.to);
     }
+
+    return max;
 }
 
-Console.WriteLine($"Part2: {maxLength}");
-
-Dictionary<Complex, HashSet<Edge>> buildGraph()
+Dictionary<(int r, int c), List<Edge>> edgeContraction(bool ignoreSlopes)
 {
-    var queue = new Queue<State>();
-    queue.Enqueue(new State(start, new Complex(-1, 1), start, 0));
-    var graph = new Dictionary<Complex, HashSet<Edge>>();
-    graph.Add(start, new HashSet<Edge>());
-    while (queue.Count > 0)
+    var graph = allNodes.ToDictionary(tp => tp, _ => new List<Edge>());
+    foreach (var node in allNodes)
     {
-        var curr = queue.Dequeue();
-
-        if (curr.p == end)
+        var queue = new Queue<State>();
+        queue.Enqueue(new State(node, node, 0));
+        while (queue.Count > 0)
         {
-            graph[curr.p] = new HashSet<Edge>();
-            graph[curr.p].Add(new Edge(curr.lastJunction, curr.stepsSinceLastJunction));
-            graph[curr.lastJunction].Add(new Edge(curr.p, curr.stepsSinceLastJunction));
-            continue;
-        }
+            var state = queue.Dequeue();
 
-        var next = offsets.Select(os => os + curr.p)
-            //no backtracking
-            .Where(n => n != curr.lastPosition)
-            .Where(n => grid[n] switch
+            if (state.current != node && allNodes.Contains(state.current))
             {
-                '#' => false,
-                _ => true,
-            })
-            .ToList();
-
-        if (next.Count > 1)
-        {
-            //we have found a junction from lastJunction to here so add to the graph
-            if (!graph.ContainsKey(curr.p))
-            {
-                graph[curr.p] = new HashSet<Edge>();
-                foreach (var n in next)
-                {
-                    queue.Enqueue(new State(n, curr.p, curr.p,1));
-                }
+                graph[node].Add(new Edge(state.current, state.steps));
+                continue;
             }
-            graph[curr.lastJunction].Add(new Edge(curr.p, curr.stepsSinceLastJunction));
-            graph[curr.p].Add(new Edge(curr.lastJunction, curr.stepsSinceLastJunction));
-        }
-        else if (next.Count == 1)
-        {
-            queue.Enqueue(new State(next.Single(), curr.p, curr.lastJunction, curr.stepsSinceLastJunction + 1));
+
+            var next = new[] { (state.current.r - 1, state.current.c), (state.current.r, state.current.c - 1),
+            (state.current.r + 1, state.current.c),(state.current.r, state.current.c + 1)}
+                //no backtracking, no going off grid
+                .Where<(int r, int c)>(n => n != state.last && n.r >= 0 && n.r < R && n.c >= 0 && n.c < C)
+                .Where(n => grid[n.Item1][n.Item2] switch
+                {
+                    '#' => false,
+                    '.' => true,
+                    'v' when n.r - state.current.r == 0 => throw new(),
+                    'v' => ignoreSlopes || n.r - state.current.r > 0,
+                    '>' when n.c - state.current.c == 0 => throw new(),
+                    '>' => ignoreSlopes || n.c - state.current.c > 0,
+                    '<' => throw new(),
+                    '^' => throw new(),
+                })
+                .ToList();
+
+            foreach (var n in next)
+            {
+                queue.Enqueue(new State(n, state.current, state.steps + 1));
+            }
         }
     }
     return graph;
 }
 
-record struct Edge(Complex to, int length);
-
-record struct GState(Complex curr, HashSet<Complex> visited, int length);
-record struct State (Complex p, Complex lastPosition, Complex lastJunction, int stepsSinceLastJunction);
+record struct Edge((int r, int c) to, int length);
+record struct State ((int r, int c) current, (int r, int c) last, int steps);
