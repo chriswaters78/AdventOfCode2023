@@ -1,9 +1,7 @@
 ﻿using System.Numerics;
 
-BigInteger min = 200000000000000L;
-BigInteger max = 400000000000000L;
-//BigInteger min = 7L;
-//BigInteger max = 27L;
+long min = 200000000000000L;
+long max = 400000000000000L;
 var points = File.ReadAllLines("input.txt").Select(line =>
 {
     var sp = line.Split(" @ ");
@@ -16,8 +14,10 @@ var points = File.ReadAllLines("input.txt").Select(line =>
 (var minx, var miny, var minz) = (points.Min(p => p.Item1[0]), points.Min(p => p.Item1[1]), points.Min(p => p.Item1[2]));
 (var minvx, var minvy, var minvz) = (points.Min(p => p.Item2[0]), points.Min(p => p.Item2[1]), points.Min(p => p.Item2[2]));
 
-//there are two points that are always at the same x co-ordinate
-//they don't intercept themselves
+part1();
+
+//there are two hailstones that are always at the same x co-ordinate
+//and they don't intercept
 //334948624416533, 351831296246019, 160929184806206 @ -86, 33, 124
 //334948624416533, 296570749940656, 321341704944761 @ -86, 8, -71
 
@@ -27,12 +27,11 @@ var points = File.ReadAllLines("input.txt").Select(line =>
 //only other option is the ray we cast must have the same x parameters (starting point and slope)
 //so it matches the x coordinate at multiple time points
 
-//we can solve for t directly from these
-//296570749940656 + 8t = 351831296246019 + 33t
-//321341704944761 - 71t = 160929184806206 + 124t
-//we start at x = 334948624416533, vx = -86
+//therefore by inspection we start
+//at x = 334948624416533, vx = -86
+//and it so happens that this is t=0 as well :)
+//we can calculate all other points from there
 
-//part1();
 long x = 334948624416533L;
 long vx = -86;
 var times = new List<(double time, (long x, long y, long z) p, (long vx, long vy, long vz) v)>();
@@ -63,85 +62,6 @@ Console.WriteLine($"Part2: {x},{y},{z} @ {vx},{vy},{vz} = {x + y + z}");
 //double z1 = 160929184806206 + 124 * t1;
 //double z2 = 321341704944761 - 71 * t1;
 
-//points = points.OrderBy(p => p.Item1[0]).ToArray();
-//for (int i = 1; i < points.Length; i++)
-//{
-//    Console.WriteLine($"X: {points[i - 1].Item1[0]} to {points[i].Item1[0]}, delta {points[i].Item1[0] - points[i - 1].Item1[0]}");
-//}
-//points = points.OrderBy(p => p.Item1[1]).ToArray();
-//for (int i = 1; i < points.Length; i++)
-//{
-//    Console.WriteLine($"Y: {points[i - 1].Item1[1]} to {points[i].Item1[1]}, delta {points[i].Item1[1] - points[i - 1].Item1[1]}");
-//}
-//points = points.OrderBy(p => p.Item1[2]).ToArray();
-//for (int i = 1; i < points.Length; i++)
-//{
-//    Console.WriteLine($"Z: {points[i - 1].Item1[2]} to {points[i].Item1[2]}, delta {points[i].Item1[2] - points[i - 1].Item1[2]}");
-//}
-
-
-//long count = 0;
-//for (long i = (long)points[0].Item1[0]; i < max; i += (long)points[0].Item2[0])
-//{
-//    if (count % 1000000 == 0)
-//    {
-//        Console.WriteLine($"Checked {i}");
-//    }
-//    count++;
-//}
-
-
-List<long> primes(long number)
-{
-    var primes = new List<long>();
-
-    for (int div = 2; div <= Math.Sqrt(number); div++)
-        while (number % div == 0)
-        {
-            primes.Add(div);
-            number = number / div;
-        }
-
-    if (number > 1)
-        primes.Add(number);
-
-    return primes;
-}
-//part1();
-
-//for (BigInteger t1 = long.MinValue; t1 < long.MaxValue; t1 += long.MaxValue / 100)
-//{
-//    //assume we have intersected point 1 at t1
-//    //we need to find another t at which we intersect point 2
-//    for (BigInteger t2 = long.MinValue; t2 < long.MaxValue; t2 += long.MaxValue / 100)
-//    {
-//        if (t1 == t2)
-//            continue;
-
-//        //sum all errors for all lines
-//        Console.WriteLine($"t1,t2 = {t1},{t2}, error {sumErrors(t1, t2)}");
-//    }
-//}
-double sumErrors(BigInteger t1, BigInteger t2)
-{
-    var x0 = points[0].Item1[0] + t1 * points[0].Item2[0];
-    var x1 = points[1].Item1[0] + t2 * points[1].Item2[0];
-    BigInteger vx = (x1 - x0) / (t2 - t1);
-
-    double totalError = 0;
-    foreach (var point in points)
-    {
-        double tn = (double)point.Item1[0] / (double) (vx - point.Item2[0]);
-        //we intercept x axis for this point at tn
-        //double yerror = ((double)point.Item1[1] + tn * (double)point.Item2[1]) - tn * (double)vy;
-        //totalError += yerror * yerror;
-        //double zerror = ((double)point.Item1[2] + tn * (double)point.Item2[2]) - tn * (double)vz;
-        //totalError += zerror * zerror;
-    }
-
-    return totalError;
-}
-
 void part1()
 {
     var points = File.ReadAllLines("input.txt").Select(line =>
@@ -163,9 +83,6 @@ void part1()
     {
         for (int i2 = i1 + 1; i2 < points.Length; i2++)
         {
-            if (points[i1].Item1[0] == 334948624416533L && points[i2].Item1[0] == 334948624416533L)
-            {
-            }
             (var x1, var y1, var z1) = (points[i1].Item1[0], points[i1].Item1[1], points[i1].Item1[2]);
             (var x2, var y2, var z2) = (points[i1].Item2[0], points[i1].Item2[1], points[i1].Item2[2]);
             (var x3, var y3, var z3) = (points[i2].Item1[0], points[i2].Item1[1], points[i2].Item1[2]);
@@ -179,9 +96,6 @@ void part1()
 
             if (pxd == 0 || pyd == 0)
             {
-                Console.WriteLine("Parallel");
-                Console.WriteLine($"{x1},{y1},{z1} -> {x2},{y2},{z2}");
-                Console.WriteLine($"{x3},{y3},{z3} -> {x4},{y4},{z4}");
                 parallel++;
                 continue;
             }
@@ -221,13 +135,13 @@ void part1()
                 else
                 {
                     outside++;
-                    Console.WriteLine($"Found intersection outside area at {actualx}, {actualy}");
                 }
             }
 
         }
     }
-    Console.WriteLine($"Valid: {valid}, outside {outside}, inpast {inpast}, parallel {parallel}, total {valid + outside + parallel + inpast}");
+
+    Console.WriteLine($"Part1: {valid}");
 }
 
 
