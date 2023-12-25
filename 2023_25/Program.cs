@@ -1,18 +1,8 @@
-﻿var graph = new Dictionary<string, HashSet<string>>();
-foreach (var line in File.ReadAllLines("test.txt"))
-{
-    //jqt: rhn xhk nvd
-    var sp = line.Split(": ");
-    if (!graph.ContainsKey(sp[0]))
-        graph[sp[0]] = new HashSet<string>();
-    foreach (var edge in sp[1].Split(" "))
-    {
-        graph[sp[0]].Add(edge);
-        if (!graph.ContainsKey(edge))
-            graph[edge] = new HashSet<string>();
-        graph[edge].Add(sp[0]);
-    }
-}
+﻿var graphStr = new Dictionary<string, HashSet<string>>();
+var strToIndex = graphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.str, tp => tp.i);
+
+var graph = graphStr.ToDictionary(kvp => strToIndex[kvp.Key], kvp => kvp.Value.Select(str => strToIndex[str]).ToList());
+
 
 Console.WriteLine($"{graph.Keys.Count} nodes, {graph.Values.Sum(l => l.Count)} edges");
 
@@ -21,9 +11,9 @@ var routeCounts = (from key2 in graph.Keys
                    where key2 != key1
                    select (key1, key2, countRoutes(key1, key2))).ToList();
 
-var set1 = new HashSet<string>();
+var set1 = new HashSet<int>();
 set1.Add(key1);
-var set2 = new HashSet<string>();
+var set2 = new HashSet<int>();
 foreach (var route in routeCounts)
 {
     if (route.Item3 >= 4)
@@ -38,9 +28,9 @@ foreach (var route in routeCounts)
 
 Console.WriteLine($"Part1: {set1.Count * set2.Count}");
 
-int countRoutes(string key1, string key2)
+int countRoutes(int key1, int key2)
 {
-    var without = new HashSet<(string from, string to)>();
+    var without = new HashSet<(int from, int to)>();
     int count = 0;
     while (true)
     {
@@ -68,21 +58,30 @@ int countRoutes(string key1, string key2)
     return count;
 }
 
-List<(string from, string to)> canReachWithoutEdges(string start, string end, HashSet<(string from, string to)> without)
+List<(int from, int to)> canReachWithoutEdges(int start, int end, HashSet<(int from, int to)> without)
 {
-    var stack = new Stack<(string, HashSet<string>, List<(string from, string to)>)>();
-    stack.Push((start, [start], new List<(string from, string to)>()));
-    while (stack.Any())
+    int maxDepth = 0;
+    var queue = new Queue<(int, HashSet<int>, List<(int from, int to)>, int)>();
+    queue.Enqueue((start, [start], new List<(int from, int to)>(), 0));
+    while (queue.Any())
     {
-        (var curr, var visited, var route) = stack.Pop();
+        (var curr, var visited, var route, var depth) = queue.Dequeue();
         if (curr == end)
         {
             return route;
         }
+        if (depth > maxDepth)
+        {
+            Console.WriteLine($"Max depth: {maxDepth}");
+            maxDepth = depth;
+        }
+
+        if (depth > 11)
+            return null;
 
         foreach (var edge in graph[curr])
         {
-            (var from, var to) = (curr.CompareTo(edge) == -1 ? curr : edge, curr.CompareTo(edge) == -1 ? edge : curr);
+            (var from, var to) = (curr <= edge ? curr : edge, curr <= edge ? edge : curr);
             if (without.Contains((from, to)))
                 continue;
 
@@ -93,35 +92,28 @@ List<(string from, string to)> canReachWithoutEdges(string start, string end, Ha
             newVisited.Add(edge);
             var newRoute = route.ToList();
             newRoute.Add((from, to));
-            stack.Push((edge, newVisited, newRoute));
+            queue.Enqueue((edge, newVisited, newRoute, depth + 1));
         }
     }
     return null;
 }
 
-List<HashSet<string>> bfs(string start, string end)
+int countNodes(string start)
 {
-    var results = new List<HashSet<string>>();
-    var queue = new Queue<(string, HashSet<string>)>();
-    queue.Enqueue((start, [start]));
+    HashSet<string> visited = new HashSet<string>();
+    var queue = new Queue<string>();
+    queue.Enqueue(start);
     while (queue.Any())
     {
-        (var curr, var visited) = queue.Dequeue();
-        if (curr == end)
-        {
-            results.Add(visited);
-            continue;
-        }
-
-        foreach (var edge in graph[curr])
+        var curr = queue.Dequeue();
+        visited.Add(curr);
+        foreach (var edge in graphStr[curr])
         {
             if (visited.Contains(edge))
                 continue;
 
-            var newVisited = visited.ToHashSet();
-            newVisited.Add(edge);
-            queue.Enqueue((edge, newVisited));
+            queue.Enqueue(edge);
         }
     }
-    return results;
+    return visited.Count;
 }
