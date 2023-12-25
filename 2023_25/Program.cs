@@ -1,5 +1,5 @@
 ﻿var graph = new Dictionary<string, HashSet<string>>();
-foreach (var line in File.ReadAllLines("input.txt"))
+foreach (var line in File.ReadAllLines("test.txt"))
 {
     //jqt: rhn xhk nvd
     var sp = line.Split(": ");
@@ -48,6 +48,11 @@ int countRoutes(string key1, string key2)
         if (path == null)
         {
             break;
+        }
+        Console.WriteLine($"Found route from {key1} to {key2}, wihtout {without.Count} nodes");
+        foreach (var p in path)
+        {
+            Console.WriteLine($"{p.from} -> {p.to}");
         }
         foreach (var edge in path)
         {
