@@ -1,5 +1,5 @@
 ﻿var graph = new Dictionary<string, HashSet<string>>();
-foreach (var line in File.ReadAllLines("test.txt"))
+foreach (var line in File.ReadAllLines("input.txt"))
 {
     //jqt: rhn xhk nvd
     var sp = line.Split(": ");
@@ -16,75 +16,52 @@ foreach (var line in File.ReadAllLines("test.txt"))
 
 Console.WriteLine($"{graph.Keys.Count} nodes, {graph.Values.Sum(l => l.Count)} edges");
 
-List<HashSet<(string from, string to)>> found = new List<HashSet<(string from, string to)>>();
-
 var key1 = graph.Keys.First();
-foreach (var key2 in graph.Keys.Skip(1).ToList())
+var routeCounts = (from key2 in graph.Keys
+                   where key2 != key1
+                   select (key1, key2, countRoutes(key1, key2))).ToList();
+
+var set1 = new HashSet<string>();
+set1.Add(key1);
+var set2 = new HashSet<string>();
+foreach (var route in routeCounts)
+{
+    if (route.Item3 >= 4)
+    {
+        set1.Add(route.key2);
+    }
+    else
+    {
+        set2.Add(route.key2);
+    }
+}
+
+Console.WriteLine($"Part1: {set1.Count * set2.Count}");
+
+int countRoutes(string key1, string key2)
 {
     var without = new HashSet<(string from, string to)>();
-    bool canReachViaFourRoutes = true;
-    for (int i = 0; i < 3; i++)
+    int count = 0;
+    while (true)
     {
         var path = canReachWithoutEdges(key1, key2, without);
         if (path == null)
         {
-            canReachViaFourRoutes = false;
-            //we couldn't reach three times, these nodes are in the two sets
+            break;
         }
-        else
+        foreach (var edge in path)
         {
-            foreach (var edge in path)
-            {
-                without.Add(edge);
-            }
+            without.Add(edge);
         }
+        count++;
+        if (count >= 4)
+            break;
     }
-    if (canReachViaFourRoutes)
-    {
-        //merge our two nodes to create a new graph
-        var newKey = $"{key1}{key2}";
-        graph[newKey] = new HashSet<string>();
-        foreach (var edge in graph[key1])
-        {
-            if (edge == key2)
-                continue;
 
-            graph[newKey].Add(edge);
-            graph[edge].Add(newKey);
-        }
-        foreach (var edge in graph[key2])
-        {
-            if (edge == key1)
-                continue;
+    Console.WriteLine($"Counted routes, {key1} to {key2}, {count}");
 
-            if (edge != newKey)
-                graph[newKey].Add(edge);
-
-            graph[edge].Add(newKey);
-        }
-        graph.Remove(key1);
-        graph.Remove(key2);
-
-        foreach (var key in graph.Keys.ToList())
-        {
-            if (graph[key].Contains(key1))
-            {
-                graph[key].Remove(key1);
-                graph[key].Add(newKey);
-            }
-            if (graph[key].Contains(key2))
-            {
-                graph[key].Remove(key2);
-                graph[key].Add(newKey);
-            }
-        }
-
-        key1 = newKey;
-    }
+    return count;
 }
-
-
-Console.WriteLine();
 
 List<(string from, string to)> canReachWithoutEdges(string start, string end, HashSet<(string from, string to)> without)
 {
