@@ -1,4 +1,27 @@
 ﻿var graphStr = new Dictionary<string, HashSet<string>>();
+using (StreamWriter writer = new StreamWriter("graph.viz"))
+{
+    writer.WriteLine("graph {");
+
+    foreach (var line in File.ReadAllLines("input.txt"))
+    {
+        //jqt: rhn xhk nvd
+        var sp = line.Split(": ");
+        if (!graphStr.ContainsKey(sp[0]))
+            graphStr[sp[0]] = new HashSet<string>();
+        foreach (var edge in sp[1].Split(" "))
+        {
+            writer.WriteLine($"{sp[0]} -- {edge}");
+            graphStr[sp[0]].Add(edge);
+            if (!graphStr.ContainsKey(edge))
+                graphStr[edge] = new HashSet<string>();
+            graphStr[edge].Add(sp[0]);
+        }
+    }
+
+    writer.WriteLine("}");
+}
+
 var strToIndex = graphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.str, tp => tp.i);
 
 var graph = graphStr.ToDictionary(kvp => strToIndex[kvp.Key], kvp => kvp.Value.Select(str => strToIndex[str]).ToList());
@@ -76,7 +99,7 @@ List<(int from, int to)> canReachWithoutEdges(int start, int end, HashSet<(int f
             maxDepth = depth;
         }
 
-        if (depth > 11)
+        if (depth > 12)
             return null;
 
         foreach (var edge in graph[curr])
