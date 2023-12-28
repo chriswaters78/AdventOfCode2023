@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+double Sqrt2 = Math.Sqrt(2);
 Random rand = new Random();
 var stopwatch = Stopwatch.StartNew();
 
@@ -20,16 +21,17 @@ foreach (var line in File.ReadAllLines("input.txt"))
 
 Console.WriteLine($"{graph.Keys.Count} nodes, edges {graph.Values.Sum(list => list.Count)}");
 
-kragers(graph);
+kragersSimple(graph);
 
-void kragers(Dictionary<string, List<string>> grap)
+void kragersSimple(Dictionary<string, List<string>> grap)
 {
     int bestCut = int.MaxValue;
     stopwatch.Restart();
     for (int n = 1; n < 1000000; n++)
     {
-        var result = KragerMininumCut(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)));
-        var minCut = result.Values.First().Sum(kvp => kvp.Value);
+        var minCut = recursiveContract(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)));
+        //var result = contract(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)),2);
+        //var minCut = result.Values.First().Sum(kvp => kvp.Value);
         if (minCut < bestCut)
         {
             bestCut = minCut;
@@ -37,8 +39,8 @@ void kragers(Dictionary<string, List<string>> grap)
         }
         if (minCut == 3)
         {
-            Console.WriteLine($"Found min cut of 3 found between {result.Keys.First()} and {result.Keys.Skip(1).Single()}");
-            Console.WriteLine($"{result.Keys.First().Length * result.Keys.Skip(1).Single().Length / 9}");
+            //Console.WriteLine($"Found min cut of 3 found between {result.Keys.First()} and {result.Keys.Skip(1).Single()}");
+            //Console.WriteLine($"{result.Keys.First().Length * result.Keys.Skip(1).Single().Length / 9}");
             break;
         }
         else
@@ -48,10 +50,35 @@ void kragers(Dictionary<string, List<string>> grap)
     }
 }
 
-
-Dictionary<string, Dictionary<string, int>> KragerMininumCut(Dictionary<string, Dictionary<string, int>> graph)
+int recursiveContract(Dictionary<string, Dictionary<string,int>> graph)
 {
-    while (graph.Count > 2)
+    int N = graph.Count;
+    if (N < 6)
+    {
+        var g = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
+        g = contract(g, 2);
+        return g.First().Value.Sum(kvp => kvp.Value);
+    }
+    else
+    {
+        var limit = (int)Math.Ceiling(N / (Sqrt2 + 1));
+        
+        var g1 = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
+        g1 = contract(g1, limit);
+        var r1 = recursiveContract(g1);
+        
+        var g2 = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
+        g2 = contract(g2, limit);
+        var r2 = recursiveContract(g2);
+
+        return Math.Min(r1,r2);
+    }
+}
+
+
+Dictionary<string, Dictionary<string, int>> contract(Dictionary<string, Dictionary<string, int>> graph, int k)
+{
+    while (graph.Count > k)
     {
         (var vertex, var edge) = randomSelect(graph);
         graph = contractEdge(graph, vertex, edge);
