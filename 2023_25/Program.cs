@@ -159,7 +159,6 @@ Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dict
             continue;
 
         graph[edge.Key][newKey] = edge.Value;
-        graph[edge.Key][newKey] = graph[edge.Key][v1];
         graph[edge.Key].Remove(v1);
     }
     foreach (var edge in graph[v2])
