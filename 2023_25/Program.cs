@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-
+Random rand = new Random();
 var stopwatch = Stopwatch.StartNew();
 
 var graph = new Dictionary<string, List<string>>();
@@ -18,15 +18,84 @@ foreach (var line in File.ReadAllLines("input.txt"))
     }
 }
 
-Console.WriteLine($"{graph.Keys.Count} nodes, node1: {graph.Keys.First()}, node2: {graph.Keys.Skip(1).First()}");
+Console.WriteLine($"{graph.Keys.Count} nodes, edges {graph.Values.Sum(list => list.Count)}");
 
-//6 seems to be the optimum depth to limit to
-contract(6);
+kragers(graph);
 
-var node1 = graph.Keys.First();
-var node2 = graph.Keys.Skip(1).First();
-Console.WriteLine($"Contract graph to 2 nodes: {node1} (count = {node1.Length / 3}) and {node2} (count = {node2.Length / 3}) ");
-Console.WriteLine($"Part2: {(node1.Length / 3) * (node2.Length / 3)} in {stopwatch.ElapsedMilliseconds}ms");
+void kragers(Dictionary<string, List<string>> grap)
+{
+    int bestCut = int.MaxValue;
+    stopwatch.Restart();
+    for (int n = 1; n < 1000000; n++)
+    {
+        var result = KragerMininumCut(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList()));
+        var minCut = result.Values.First().Count;
+        if (minCut < bestCut)
+        {
+            bestCut = minCut;
+            Console.WriteLine($"Cut of {bestCut} found on iteration {n} in {stopwatch.ElapsedMilliseconds}");
+        }
+        if (minCut == 3)
+        {
+            Console.WriteLine($"Found min cut of 3 found between {result.Keys.First()} and {result.Keys.Skip(1).Single()}");
+            Console.WriteLine($"{result.Keys.First().Length * result.Keys.Skip(1).Single().Length / 9}");
+            break;
+        }
+        else
+        {
+            Console.WriteLine($"Iteration {n} found cut of {minCut}, average time per iteration {stopwatch.ElapsedMilliseconds / n}ms");
+        }
+    }
+}
+
+
+Dictionary<string, List<string>> KragerMininumCut(Dictionary<string, List<string>> graph)
+{
+    while (graph.Count > 2)
+    {
+        (var vertex, var edge) = randomSelect(graph);
+        graph = contractEdge(graph, vertex, edge);
+    }
+
+    return graph;
+}
+
+(string vertex, string edge) randomSelect(Dictionary<string, List<string>> graph)
+{
+    //find weights for all keys
+    var Ds = new List<(string key, int cumulativeWeight)>();
+    int acc = 0;
+    foreach (var kvp in graph)
+    {
+        acc += kvp.Value.Count;
+        Ds.Add((kvp.Key, acc));
+    }
+    var randomVertex = rand.Next(acc);
+    string chosenVertex = null;
+    foreach (var d in Ds)
+    {
+        if (randomVertex < d.cumulativeWeight)
+        {
+            chosenVertex = d.key;
+            break;
+        }
+    }
+    var chosenEdge = graph[chosenVertex][rand.Next(graph[chosenVertex].Count)];
+
+    return (chosenVertex, chosenEdge);
+}
+
+void method1(Dictionary<string,List<string>> graph)
+{
+    graph = graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value); 
+    //doesnt seem to always finish, buggy?
+    contract(7);
+
+    var node1 = graph.Keys.First();
+    var node2 = graph.Keys.Skip(1).First();
+    Console.WriteLine($"Contracted graph to 2 nodes: {node1} (count = {node1.Length / 3}) and {node2} (count = {node2.Length / 3}) ");
+    Console.WriteLine($"Part2: {(node1.Length / 3) * (node2.Length / 3)} in {stopwatch.ElapsedMilliseconds}ms");
+}
 
 void contract(int maxDepth)
 {
@@ -34,7 +103,7 @@ void contract(int maxDepth)
     while (graph.Count > 2)
     {
         string key1 = graph.Keys.ToList()[rand.Next(graph.Count)];
-        string key2 = graph[key1].Skip(1 + rand.Next(graph[key1].Count - 2)).First();
+        string key2 = graph[key1].Skip(1 + rand.Next(graph[key1].Count - 1)).First();
 
         var without = new Dictionary<(string from, string to), int>();
         List<(string from, string to)> path = null;
