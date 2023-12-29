@@ -27,31 +27,43 @@ HashSet<string> prevSet2 = null;
 for (int i = 0; i < 100; i++)
 {
     foreach (var (name, resultFactory) in new (string name, Func<(int minCut, string partition)>)[] {
-        ("Handrolled", () => method1(originalGraph)),
-        ("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
-        ("Kragers (recursive)", () => kragers(originalGraph, 3, true)),
-        ("Kragers (non-recursive)", () => kragers(originalGraph, 3, false))})
+        //("Handrolled", () => method1(originalGraph)),
+        //("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
+        ("Kargers (recursive)", () => kargers(originalGraph, 3, true)),
+        //("Kargers (non-recursive)", () => kargers(originalGraph, 3, false))
+    })
     {
         stopwatch.Restart();
         (var minCut, string partition) = resultFactory();
         var set1 = partition.Select((ch, i) => (ch, i)).GroupBy(tp => tp.i / 3).Select(grp => new String(grp.OrderBy(tp => tp.i).Select(tp => tp.ch).ToArray())).ToHashSet();
         var set2 = originalGraph.Keys.Where(key => !set1.Contains(key)).ToHashSet();
 
-
         Console.WriteLine($"{name} found min cut of {minCut}, between a partition of size {set1.Count} and {set2.Count} in {stopwatch.ElapsedMilliseconds} ms");
-        Console.WriteLine($"{name} Part2: {set1.Count * set2.Count}");
 
         (set1, set2) = set1.Count <= set2.Count ? (set1, set2) : (set2, set1);
         if (prevSet1 != null)
         {
             if (!prevSet1.OrderBy(str => str).SequenceEqual(set1.OrderBy(str => str)))
             {
-                Console.WriteLine("Set did not match previous found set");
+                throw new("Set did not match previous found set");
             }
             else
             {
                 Console.WriteLine("Sets matched previous minCut found");
             }
+        }
+        else
+        {
+            Console.WriteLine($"Found two sets with mincut of {minCut}");
+            Console.WriteLine($"Set 1: [{String.Join(",", set1)}]");
+            Console.WriteLine($"Set 2: [{String.Join(",", set2)}]");
+            
+            var edges = originalGraph.SelectMany(kvp => kvp.Value.Select(to => (kvp.Key, to)))
+                .Where(tp => set1.Contains(tp.Key) && set2.Contains(tp.to) || set2.Contains(tp.Key) && set1.Contains(tp.to))
+                .Select(tp => tp.Key.CompareTo(tp.to) == -1 ? (tp.Key, tp.to) : (tp.to, tp.Key))
+                .Distinct().ToList<(string from, string to)>();
+            
+            Console.WriteLine($"Min cut edges = {String.Join("; ", edges.Select(tp => $"{tp.from} => {tp.to}"))}");
         }
         (prevSet1, prevSet2) = (set1, set2);
     }
@@ -111,17 +123,22 @@ for (int i = 0; i < 100; i++)
         }
     }
     int cutOfPhase = int.MaxValue;
+
+    //n iterations
     while (A.Count != graph.Count)
     {
         //find the most strongly connected vertex to A
+        //lg n to remove the min
         (cutOfPhase, var next) = weights.Dequeue();
         cells.Remove(next);
         A.Add(next);
         //update queue, every vertex connected to next must have its priority increased by the weight of edge to next
+        //O(E)
         foreach ((var connected, var count) in graph[next])
         {
             if (cells.ContainsKey(connected))
             {
+                //O(1) to increase key?
                 weights.ChangeKey(cells[connected], cells[connected].Priority + count);
             }
         }
@@ -131,15 +148,15 @@ for (int i = 0; i < 100; i++)
     graph = contractEdge(graph, A[A.Count - 2], A[A.Count - 1]);
     return (cutOfPhase, A.Last());
 }
-(int, string) kragers(Dictionary<string, List<string>> graph, int FINDCUT, bool useRecursive)
+(int, string) kargers(Dictionary<string, List<string>> graph, int FINDCUT, bool useRecursive)
 {
     int bestCut = int.MaxValue;
     string bestPartition = null;
     stopwatch.Restart();
     while (bestCut != FINDCUT)
     {
-        var result = useRecursive ? recursiveContractKragers(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)))
-            : contractKragers(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)), 2); ;
+        var result = useRecursive ? recursiveContractKargers(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)))
+            : contractKargers(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)), 2); ;
         
         var minCut = result.Values.First().Sum(kvp => kvp.Value);
         if (minCut < bestCut)
@@ -151,32 +168,32 @@ for (int i = 0; i < 100; i++)
     return (bestCut, bestPartition);
 }
 
-Dictionary<string, Dictionary<string, int>> recursiveContractKragers(Dictionary<string, Dictionary<string,int>> graph)
+Dictionary<string, Dictionary<string, int>> recursiveContractKargers(Dictionary<string, Dictionary<string,int>> graph)
 {
     int N = graph.Count;
     if (N < 6)
     {
         var g = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
-        g = contractKragers(g, 2);
+        g = contractKargers(g, 2);
         return g;
     }
     else
     {
-        var limit = (int)Math.Ceiling(N / (Sqrt2 + 1));
+        var limit = (int) Math.Ceiling(N / (Sqrt2 + 1));
         
         var g1 = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
-        g1 = contractKragers(g1, limit);
-        var r1 = recursiveContractKragers(g1);
+        g1 = contractKargers(g1, limit);
+        var r1 = recursiveContractKargers(g1);
         
         var g2 = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
-        g2 = contractKragers(g2, limit);
-        var r2 = recursiveContractKragers(g2);
+        g2 = contractKargers(g2, limit);
+        var r2 = recursiveContractKargers(g2);
 
         return r1.Values.First().Sum(kvp => kvp.Value) < r2.Values.First().Sum(kvp => kvp.Value) ? r1 : r2;
     }
 }
 
-Dictionary<string, Dictionary<string, int>> contractKragers(Dictionary<string, Dictionary<string, int>> graph, int k)
+Dictionary<string, Dictionary<string, int>> contractKargers(Dictionary<string, Dictionary<string, int>> graph, int k)
 {
     while (graph.Count > k)
     {
@@ -272,8 +289,6 @@ Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dict
 }
 
 
-//original hacked up version
-//should work but seems inconsistent?
 Dictionary<string, Dictionary<string,int>> contract(Dictionary<string, List<String>> graph)
 {
     var g = graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(key => key, _ => 1));
