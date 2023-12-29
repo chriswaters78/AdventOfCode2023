@@ -29,9 +29,9 @@ void kragersSimple(Dictionary<string, List<string>> grap)
     stopwatch.Restart();
     for (int n = 1; n < 1000000; n++)
     {
-        var minCut = recursiveContract(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)));
+        var result = recursiveContract(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)));
         //var result = contract(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)),2);
-        //var minCut = result.Values.First().Sum(kvp => kvp.Value);
+        var minCut = result.Values.First().Sum(kvp => kvp.Value);
         if (minCut < bestCut)
         {
             bestCut = minCut;
@@ -39,8 +39,8 @@ void kragersSimple(Dictionary<string, List<string>> grap)
         }
         if (minCut == 3)
         {
-            //Console.WriteLine($"Found min cut of 3 found between {result.Keys.First()} and {result.Keys.Skip(1).Single()}");
-            //Console.WriteLine($"{result.Keys.First().Length * result.Keys.Skip(1).Single().Length / 9}");
+            Console.WriteLine($"Found min cut of 3 found between {result.Keys.First()} and {result.Keys.Skip(1).Single()}");
+            Console.WriteLine($"{result.Keys.First().Length * result.Keys.Skip(1).Single().Length / 9}");
             break;
         }
         else
@@ -50,14 +50,14 @@ void kragersSimple(Dictionary<string, List<string>> grap)
     }
 }
 
-int recursiveContract(Dictionary<string, Dictionary<string,int>> graph)
+Dictionary<string, Dictionary<string, int>> recursiveContract(Dictionary<string, Dictionary<string,int>> graph)
 {
     int N = graph.Count;
     if (N < 6)
     {
         var g = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
         g = contract(g, 2);
-        return g.First().Value.Sum(kvp => kvp.Value);
+        return g;
     }
     else
     {
@@ -71,7 +71,7 @@ int recursiveContract(Dictionary<string, Dictionary<string,int>> graph)
         g2 = contract(g2, limit);
         var r2 = recursiveContract(g2);
 
-        return Math.Min(r1,r2);
+        return r1.Values.First().Sum(kvp => kvp.Value) < r2.Values.First().Sum(kvp => kvp.Value) ? r1 : r2;
     }
 }
 
