@@ -75,7 +75,6 @@ Dictionary<string, Dictionary<string, int>> recursiveContract(Dictionary<string,
     }
 }
 
-
 Dictionary<string, Dictionary<string, int>> contract(Dictionary<string, Dictionary<string, int>> graph, int k)
 {
     while (graph.Count > k)
@@ -140,6 +139,36 @@ void method1(Dictionary<string,List<string>> graph)
     Console.WriteLine($"Part2: {(node1.Length / 3) * (node2.Length / 3)} in {stopwatch.ElapsedMilliseconds}ms");
 }
 
+Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dictionary<string, int>> graph, string v1, string v2)
+{
+    var newKey = $"{v1}{v2}";
+    graph[newKey] = graph[v1].Concat(graph[v2]).Where(e => e.Key != v1 && e.Key != v2)
+        .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
+
+    //find all the edges that previously joined to v1
+    //these need to join to newKey instead
+    foreach (var edge in graph[v1])
+    {
+        if (edge.Key == v2)
+            continue;
+
+        graph[edge.Key][newKey] = edge.Value;
+        graph[edge.Key].Remove(v1);
+    }
+    foreach (var edge in graph[v2])
+    {
+        if (edge.Key == v1)
+            continue;
+
+        graph[edge.Key][newKey] = graph[edge.Key].ContainsKey(newKey) ? graph[edge.Key][newKey] + edge.Value : edge.Value;
+        graph[edge.Key].Remove(v2);
+    }
+    graph.Remove(v1);
+    graph.Remove(v2);
+
+    return graph;
+}
+
 //void contract(int maxDepth)
 //{
 //    var rand = new Random();
@@ -171,36 +200,6 @@ void method1(Dictionary<string,List<string>> graph)
 //        }
 //    }
 //}
-
-Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dictionary<string, int>> graph, string v1, string v2)
-{
-    var newKey = $"{v1}{v2}";
-    graph[newKey] = graph[v1].Concat(graph[v2]).Where(e => e.Key != v1 && e.Key != v2)
-        .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
-
-    //find all the edges that previously joined to v1
-    //these need to join to newKey instead
-    foreach (var edge in graph[v1])
-    {
-        if (edge.Key == v2)
-            continue;
-
-        graph[edge.Key][newKey] = edge.Value;
-        graph[edge.Key].Remove(v1);
-    }
-    foreach (var edge in graph[v2])
-    {
-        if (edge.Key == v1)
-            continue;
-
-        graph[edge.Key][newKey] = graph[edge.Key].ContainsKey(newKey) ? graph[edge.Key][newKey] + edge.Value : edge.Value;
-        graph[edge.Key].Remove(v2);
-    }
-    graph.Remove(v1);
-    graph.Remove(v2);
-
-    return graph;
-}
 
 List<(string from, string to)> canReachWithoutEdges(int maxDepth, string start, string end, Dictionary<(string from, string to), int> without)
 {
