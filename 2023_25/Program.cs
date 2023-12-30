@@ -24,9 +24,9 @@ Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Value
 
 var tests = new (string name, Func<(int minCut, string partition)>)[] {
         //("Count crossings", () => countCrossings(originalGraph)),
-        //("Handrolled", () => method1(originalGraph)),
+        ("Handrolled", () => method1(originalGraph)),
         //("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
-        ("Karger-Stein", () => kargers(originalGraph, 3, true)),
+        //("Karger-Stein", () => kargers(originalGraph, 3, true)),
         //("Karger", () => kargers(originalGraph, 3, false))
     };
 
@@ -133,7 +133,7 @@ for (int i = 0; i < 100; i++)
     var minCut = int.MaxValue;
     string minPartition = null;
 
-    var g = graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1));
+    var g = graph.ToDictionary(kvp => kvp.Key, kvp => ((List<string>) [kvp.Key], kvp.Value.ToDictionary(str => str, _ => 1)));
     while (g.Count > 1)
     {
         (var cutOfPhase, var partition) = minimumCutPhaseStoerWagner(g, a);
@@ -146,7 +146,7 @@ for (int i = 0; i < 100; i++)
 
     return (minCut, minPartition);
 }
-(int minCut, string partition) minimumCutPhaseStoerWagner(Dictionary<string, Dictionary<string,int>> graph, string a)
+(int minCut, string partition) minimumCutPhaseStoerWagner(Dictionary<string, (List<string> merges, Dictionary<string,int> edges)> graph, string a)
 {
     var A = new List<string>();
     A.Add(a);
@@ -158,9 +158,9 @@ for (int i = 0; i < 100; i++)
         if (v == a)
             continue;
 
-        if (graph[v].ContainsKey(a))
+        if (graph[v].edges.ContainsKey(a))
         {
-            cells[v] = weights.Enqueue(graph[v][a], v);
+            cells[v] = weights.Enqueue(graph[v].edges[a], v);
         }
         else
         {
@@ -179,7 +179,7 @@ for (int i = 0; i < 100; i++)
         A.Add(next);
         //update queue, every vertex connected to next must have its priority increased by the weight of edge to next
         //O(E)
-        foreach ((var connected, var count) in graph[next])
+        foreach ((var connected, var count) in graph[next].edges)
         {
             if (cells.ContainsKey(connected))
             {
@@ -190,7 +190,7 @@ for (int i = 0; i < 100; i++)
     }
 
     //now we must shrink G by merging the last two added nodes
-    graph = contractEdge(graph, A[A.Count - 2], A[A.Count - 1]);
+    graph = contractEdgeNew(graph, A[A.Count - 2], A[A.Count - 1]);
     return (cutOfPhase, A.Last());
 }
 (int, string) kargers(Dictionary<string, List<string>> graph, int FINDCUT, bool useRecursive)
@@ -200,25 +200,25 @@ for (int i = 0; i < 100; i++)
     stopwatch.Restart();
     while (bestCut != FINDCUT)
     {
-        var result = useRecursive ? recursiveContractKargers(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)))
-            : contractKargers(graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1)), 2); ;
+        var result = useRecursive ? recursiveContractKargers(graph.ToDictionary(kvp => kvp.Key, kvp => ((List<string>) [kvp.Key],kvp.Value.ToDictionary(str => str, _ => 1))))
+            : contractKargers(graph.ToDictionary(kvp => kvp.Key, kvp => ((List<string>) [kvp.Key], kvp.Value.ToDictionary(str => str, _ => 1))), 2); ;
         
-        var minCut = result.Values.First().Sum(kvp => kvp.Value);
+        var minCut = result.Values.First().edges.Sum(kvp => kvp.Value);
         if (minCut < bestCut)
         {
             bestCut = minCut;
-            bestPartition = result.Keys.First();
+            bestPartition = String.Join("", result.First().Value.merges);
         }
     }
     return (bestCut, bestPartition);
 }
 
-Dictionary<string, Dictionary<string, int>> recursiveContractKargers(Dictionary<string, Dictionary<string,int>> graph)
+Dictionary<string, (List<String> merges, Dictionary<string, int> edges)> recursiveContractKargers(Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> graph)
 {
     int N = graph.Count;
     if (N < 6)
     {
-        var g = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
+        var g = graph.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.merges.ToList(), kvp.Value.edges.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value)));
         g = contractKargers(g, 2);
         return g;
     }
@@ -226,37 +226,37 @@ Dictionary<string, Dictionary<string, int>> recursiveContractKargers(Dictionary<
     {
         var limit = (int) Math.Ceiling(N / (Sqrt2 + 1));
 
-        var g1 = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
+        var g1 = graph.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.merges.ToList(), kvp.Value.edges.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value)));
         g1 = contractKargers(g1, limit);
         var r1 = recursiveContractKargers(g1);
-        
-        var g2 = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
+
+        var g2 = graph.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.merges.ToList(), kvp.Value.edges.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value)));
         g2 = contractKargers(g2, limit);
         var r2 = recursiveContractKargers(g2);
 
-        return r1.Values.First().Sum(kvp => kvp.Value) < r2.Values.First().Sum(kvp => kvp.Value) ? r1 : r2;
+        return r1.Values.First().edges.Sum(kvp => kvp.Value) < r2.Values.First().edges.Sum(kvp => kvp.Value) ? r1 : r2;
     }
 }
 
-Dictionary<string, Dictionary<string, int>> contractKargers(Dictionary<string, Dictionary<string, int>> graph, int k)
+Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> contractKargers(Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> graph, int k)
 {
     while (graph.Count > k)
     {
         (var vertex, var edge) = randomSelectKragers(graph);
-        graph = contractEdge(graph, vertex, edge);
+        graph = contractEdgeNew(graph, vertex, edge);
     }
 
     return graph;
 }
 
-(string vertex, string edge) randomSelectKragers(Dictionary<string, Dictionary<string, int>> graph)
+(string vertex, string edge) randomSelectKragers(Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> graph)
 {
     //find weights for all keys
     var Ds = new List<(string key, int cumulativeWeight)>();
     int acc = 0;
     foreach (var kvp in graph)
     {
-        acc += kvp.Value.Count;
+        acc += kvp.Value.edges.Count;
         Ds.Add((kvp.Key, acc));
     }
     var randomVertex = rand.Next(acc);
@@ -271,7 +271,7 @@ Dictionary<string, Dictionary<string, int>> contractKargers(Dictionary<string, D
     }
     var Es = new List<(string key, int cumulativeWeight)>();
     acc = 0;
-    foreach (var kvp in graph[chosenVertex])
+    foreach (var kvp in graph[chosenVertex].edges)
     {
         acc += kvp.Value;
         Es.Add((kvp.Key, acc));
@@ -296,36 +296,37 @@ Dictionary<string, Dictionary<string, int>> contractKargers(Dictionary<string, D
     graph = graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value); 
     var result = contract(graph);
 
-    var minCut = result.First().Value.Sum(tp => tp.Value);
-    var node1 = result.Keys.First();
-    var node2 = result.Keys.Skip(1).First();
+    var minCut = result.First().Value.edges.Sum(tp => tp.Value);
+    var partition = String.Join("", result.Values.First().merges);
 
-    return (minCut, node1);
+    return (minCut, partition);
 }
 
-Dictionary<string, Dictionary<string, int>> contractEdgeNew(Dictionary<string, Dictionary<string, int>> graph, string v1, string v2)
+Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> contractEdgeNew(Dictionary<string, (List<string> merges, Dictionary<string, int>)> graph, string v1, string v2)
 {
-    var newV1 = graph[v1].Concat(graph[v2]).Where(e => e.Key != v1 && e.Key != v2)
+    var newV1 = graph[v1].Item2.Concat(graph[v2].Item2).Where(e => e.Key != v1 && e.Key != v2)
         .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
 
     //find all the edges that previously joined to v1
     //these need to join to newKey instead
-    foreach (var edge in graph[v1])
+    foreach (var edge in graph[v1].Item2)
     {
         if (edge.Key == v2)
             continue;
 
-        graph[edge.Key][v1] = edge.Value;
+        graph[edge.Key].Item2[v1] = edge.Value;
     }
-    foreach (var edge in graph[v2])
+    foreach (var edge in graph[v2].Item2)
     {
         if (edge.Key == v1)
             continue;
 
-        graph[edge.Key][v1] = graph[edge.Key].ContainsKey(v1) ? graph[edge.Key][v1] + edge.Value : edge.Value;
-        graph[edge.Key].Remove(v2);
+        graph[edge.Key].Item2[v1] = graph[edge.Key].Item2.ContainsKey(v1) ? graph[edge.Key].Item2[v1] + edge.Value : edge.Value;
+        graph[edge.Key].Item2.Remove(v2);
     }
-    graph[v1] = newV1;
+    var newMerges = graph[v1].merges;
+    newMerges.AddRange(graph[v2].merges);
+    graph[v1] = (newMerges, newV1);
     graph.Remove(v2);
 
     return graph;
@@ -365,16 +366,16 @@ Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dict
 }
 
 
-Dictionary<string, Dictionary<string,int>> contract(Dictionary<string, List<String>> graph)
+Dictionary<string, (List<string> merges, Dictionary<string,int> edges)> contract(Dictionary<string, List<String>> graph)
 {
-    var g = graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(key => key, _ => 1));
+    var g = graph.ToDictionary(kvp => kvp.Key, kvp => (new List<string>() { kvp.Key }, kvp.Value.ToDictionary(key => key, _ => 1)));
     var rand = new Random();
     while (g.Count > 2)
     {
         //we have to choose nodes randomly because we only change the graph
         //if we find 4 independent routes
         string key1 = g.Keys.ToList()[rand.Next(g.Count)];
-        string key2 = g[key1].ToList()[rand.Next(g[key1].Count - 1)].Key;
+        string key2 = g[key1].Item2.ToList()[rand.Next(g[key1].Item2.Count - 1)].Key;
 
         var without = new Dictionary<(string from, string to), int>();
         List<(string from, string to)> path = null;
@@ -394,7 +395,7 @@ Dictionary<string, Dictionary<string,int>> contract(Dictionary<string, List<Stri
         }
         if (path != null)
         {
-            g = contractEdge(g, key1, key2);
+            g = contractEdgeNew(g, key1, key2);
         }
     }
     return g;
@@ -427,7 +428,7 @@ List<string> shortestPath(Dictionary<string, List<string>> graph, string start, 
     return null;
 }
 
-List<(string from, string to)> canReachWithoutEdges(Dictionary<string, Dictionary<string,int>> graph, string start, string end, Dictionary<(string from, string to), int> without)
+List<(string from, string to)> canReachWithoutEdges(Dictionary<string, (List<string> merges, Dictionary<string,int> edges)> graph, string start, string end, Dictionary<(string from, string to), int> without)
 {
     var visited = new HashSet<string>();
     var queue = new Queue<(string, List<(string from, string to)>, int)>();
@@ -441,7 +442,7 @@ List<(string from, string to)> canReachWithoutEdges(Dictionary<string, Dictionar
             return route;
         }
 
-        foreach ((var edge, var edgeCount) in graph[curr])
+        foreach ((var edge, var edgeCount) in graph[curr].edges)
         {
             (var from, var to) = curr.CompareTo(edge) == -1 ? (curr, edge) : (edge, curr);
             if (without.ContainsKey((from, to)) && without[(from,to)] >= edgeCount)
