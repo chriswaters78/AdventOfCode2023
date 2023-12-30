@@ -23,11 +23,11 @@ foreach (var line in File.ReadAllLines("input.txt"))
 Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Values.Sum(list => list.Count)}");
 
 var tests = new (string name, Func<(int minCut, string partition)>)[] {
-        //("Count crossings", () => countCrossings(originalGraph)),
+        ("Count crossings", () => countCrossings(originalGraph)),
         ("Handrolled", () => method1(originalGraph)),
-        //("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
-        //("Karger-Stein", () => kargers(originalGraph, 3, true)),
-        //("Karger", () => kargers(originalGraph, 3, false))
+        ("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
+        ("Karger-Stein", () => kargers(originalGraph, 3, true)),
+        ("Karger", () => kargers(originalGraph, 3, false))
     };
 
 var averageRuntimes = new long[tests.Length];
@@ -189,9 +189,10 @@ for (int i = 0; i < 100; i++)
         }
     }
 
+    var partition = graph[A[A.Count - 1]].merges;
     //now we must shrink G by merging the last two added nodes
-    graph = contractEdgeNew(graph, A[A.Count - 2], A[A.Count - 1]);
-    return (cutOfPhase, A.Last());
+    graph = contractEdge(graph, A[A.Count - 2], A[A.Count - 1]);
+    return (cutOfPhase, String.Join("", partition));
 }
 (int, string) kargers(Dictionary<string, List<string>> graph, int FINDCUT, bool useRecursive)
 {
@@ -243,7 +244,7 @@ Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> contrac
     while (graph.Count > k)
     {
         (var vertex, var edge) = randomSelectKragers(graph);
-        graph = contractEdgeNew(graph, vertex, edge);
+        graph = contractEdge(graph, vertex, edge);
     }
 
     return graph;
@@ -302,68 +303,71 @@ Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> contrac
     return (minCut, partition);
 }
 
-Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> contractEdgeNew(Dictionary<string, (List<string> merges, Dictionary<string, int>)> graph, string v1, string v2)
+Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> contractEdge(Dictionary<string, (List<string> merges, Dictionary<string, int> edges)> graph, string v1, string v2)
 {
-    var newV1 = graph[v1].Item2.Concat(graph[v2].Item2).Where(e => e.Key != v1 && e.Key != v2)
+    //we merge everything into v1 and keep that key
+    //and recorded any merges in the merges list for that node
+    //this is more efficient that using long merged strings in all the edge dictionaries
+    var newV1 = graph[v1].edges.Concat(graph[v2].edges).Where(e => e.Key != v1 && e.Key != v2)
         .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
 
     //find all the edges that previously joined to v1
     //these need to join to newKey instead
-    foreach (var edge in graph[v1].Item2)
+    foreach (var edge in graph[v1].edges)
     {
         if (edge.Key == v2)
             continue;
 
         graph[edge.Key].Item2[v1] = edge.Value;
     }
-    foreach (var edge in graph[v2].Item2)
+    foreach (var edge in graph[v2].edges)
     {
         if (edge.Key == v1)
             continue;
 
-        graph[edge.Key].Item2[v1] = graph[edge.Key].Item2.ContainsKey(v1) ? graph[edge.Key].Item2[v1] + edge.Value : edge.Value;
-        graph[edge.Key].Item2.Remove(v2);
+        graph[edge.Key].edges[v1] = graph[edge.Key].edges.ContainsKey(v1) ? graph[edge.Key].edges[v1] + edge.Value : edge.Value;
+        graph[edge.Key].edges.Remove(v2);
     }
-    var newMerges = graph[v1].merges;
-    newMerges.AddRange(graph[v2].merges);
-    graph[v1] = (newMerges, newV1);
+
+    graph[v1] = (graph[v1].merges, newV1);
+    graph[v1].merges.AddRange(graph[v2].merges);
     graph.Remove(v2);
 
     return graph;
 }
 
-Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dictionary<string, int>> graph, string v1, string v2)
-{
-    //the keys grow quite long in this version
-    //better to convert to int keys, and then keep a seperate mapping of ints to strings that can be updated
-    //when we merge things
-    var newKey = $"{v1}{v2}";
-    graph[newKey] = graph[v1].Concat(graph[v2]).Where(e => e.Key != v1 && e.Key != v2)
-        .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
+//Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dictionary<string, int>> graph, string v1, string v2)
+//{
+//    //the keys grow quite long in this version
+//    //better to convert to int keys, and then keep a seperate mapping of ints to strings that can be updated
+//    //when we merge things
+//    var newKey = $"{v1}{v2}";
+//    graph[newKey] = graph[v1].Concat(graph[v2]).Where(e => e.Key != v1 && e.Key != v2)
+//        .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
 
-    //find all the edges that previously joined to v1
-    //these need to join to newKey instead
-    foreach (var edge in graph[v1])
-    {
-        if (edge.Key == v2)
-            continue;
+//    //find all the edges that previously joined to v1
+//    //these need to join to newKey instead
+//    foreach (var edge in graph[v1])
+//    {
+//        if (edge.Key == v2)
+//            continue;
 
-        graph[edge.Key][newKey] = edge.Value;
-        graph[edge.Key].Remove(v1);
-    }
-    foreach (var edge in graph[v2])
-    {
-        if (edge.Key == v1)
-            continue;
+//        graph[edge.Key][newKey] = edge.Value;
+//        graph[edge.Key].Remove(v1);
+//    }
+//    foreach (var edge in graph[v2])
+//    {
+//        if (edge.Key == v1)
+//            continue;
 
-        graph[edge.Key][newKey] = graph[edge.Key].ContainsKey(newKey) ? graph[edge.Key][newKey] + edge.Value : edge.Value;
-        graph[edge.Key].Remove(v2);
-    }
-    graph.Remove(v1);
-    graph.Remove(v2);
+//        graph[edge.Key][newKey] = graph[edge.Key].ContainsKey(newKey) ? graph[edge.Key][newKey] + edge.Value : edge.Value;
+//        graph[edge.Key].Remove(v2);
+//    }
+//    graph.Remove(v1);
+//    graph.Remove(v2);
 
-    return graph;
-}
+//    return graph;
+//}
 
 
 Dictionary<string, (List<string> merges, Dictionary<string,int> edges)> contract(Dictionary<string, List<String>> graph)
@@ -395,7 +399,7 @@ Dictionary<string, (List<string> merges, Dictionary<string,int> edges)> contract
         }
         if (path != null)
         {
-            g = contractEdgeNew(g, key1, key2);
+            g = contractEdge(g, key1, key2);
         }
     }
     return g;

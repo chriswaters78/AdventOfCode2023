@@ -49,6 +49,14 @@ for (int steps = 1; steps <= maxToReach; steps++)
     }
 }
 
+//Wolfram alpha - quadratic fit calculator for:
+//{1, 2, 3} xvalues
+//{33833,93864,183871} y values
+//14988 x^2 + 15067x + 3778 
+long part22 = 202300L * 202300 * 14988 + 202300L * 15067 + 3778;
+Console.WriteLine($"Part2 directly calculated: {part22}");
+
+
 //first 65 steps makes a diamond that fills the first grid
 //then every 131 steps after that, we shift the points of the diamond one full grid away but the pattern alternates between R1 and R2
 
