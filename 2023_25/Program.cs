@@ -22,34 +22,36 @@ foreach (var line in File.ReadAllLines("input.txt"))
 
 Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Values.Sum(list => list.Count)}");
 
+var tests = new (string name, Func<(int minCut, string partition)>)[] {
+        //("Count crossings", () => countCrossings(originalGraph)),
+        //("Handrolled", () => method1(originalGraph)),
+        //("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
+        ("Karger-Stein", () => kargers(originalGraph, 3, true)),
+        //("Karger", () => kargers(originalGraph, 3, false))
+    };
+
+var averageRuntimes = new long[tests.Length];
 HashSet<string> prevSet1 = null;
 HashSet<string> prevSet2 = null;
 for (int i = 0; i < 100; i++)
 {
-    foreach (var (name, resultFactory) in new (string name, Func<(int minCut, string partition)>)[] {
-        //("Handrolled", () => method1(originalGraph)),
-        //("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
-        ("Kargers (recursive)", () => kargers(originalGraph, 3, true)),
-        //("Kargers (non-recursive)", () => kargers(originalGraph, 3, false))
-    })
+    foreach (var ((name, resultFactory), index) in tests.Select((test,i) => (test,i)))
     {
         stopwatch.Restart();
         (var minCut, string partition) = resultFactory();
+        stopwatch.Stop();
+        averageRuntimes[index] = (averageRuntimes[index] * i + stopwatch.ElapsedMilliseconds) / (i + 1);
         var set1 = partition.Select((ch, i) => (ch, i)).GroupBy(tp => tp.i / 3).Select(grp => new String(grp.OrderBy(tp => tp.i).Select(tp => tp.ch).ToArray())).ToHashSet();
         var set2 = originalGraph.Keys.Where(key => !set1.Contains(key)).ToHashSet();
-
-        Console.WriteLine($"{name} found min cut of {minCut}, between a partition of size {set1.Count} and {set2.Count} in {stopwatch.ElapsedMilliseconds} ms");
+        
+        Console.WriteLine($"{name} found min cut of {minCut}, between a partition of size {set1.Count} and {set2.Count}, average: {averageRuntimes[index]}ms, this: {stopwatch.ElapsedMilliseconds}ms");
 
         (set1, set2) = set1.Count <= set2.Count ? (set1, set2) : (set2, set1);
         if (prevSet1 != null)
         {
             if (!prevSet1.OrderBy(str => str).SequenceEqual(set1.OrderBy(str => str)))
             {
-                throw new("Set did not match previous found set");
-            }
-            else
-            {
-                Console.WriteLine("Sets matched previous minCut found");
+                Console.WriteLine("*** set did not match previous found set ***");
             }
         }
         else
@@ -69,7 +71,50 @@ for (int i = 0; i < 100; i++)
     }
 }
 
-//this is the example graph from their paper
+(int minCut, string partition) countCrossings(Dictionary<string,List<string>> graph)
+{
+    var crossingCounts = new Dictionary<(string from, string to), int>();
+    for (int i = 0; i < 5000; i++)
+    {
+        var v1 = graph.Keys.ToArray()[rand.Next(graph.Count)];
+        var v2 = graph.Keys.Where(key => key != v1).ToArray()[rand.Next(graph.Count - 1)];
+
+        var path = shortestPath(graph, v1, v2);
+        for (int p = 1; p < path.Count; p++)
+        {
+            var key = path[p-1].CompareTo(path[p]) == -1 ? (path[p - 1], path[p]) : (path[p], path[p-1]);
+            if (!crossingCounts.ContainsKey(key))
+                crossingCounts[key] = 0;
+
+            crossingCounts[key]++;
+        }
+    }
+
+    var topThree = crossingCounts.OrderByDescending(kvp => kvp.Value).Take(3).ToList();
+
+    //remove these 3 edges
+    graph = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToList());
+    graph[topThree[0].Key.from].Remove(topThree[0].Key.to);
+    graph[topThree[0].Key.to].Remove(topThree[0].Key.from);
+    graph[topThree[1].Key.from].Remove(topThree[1].Key.to);
+    graph[topThree[1].Key.to].Remove(topThree[1].Key.from);
+    graph[topThree[2].Key.from].Remove(topThree[2].Key.to);
+    graph[topThree[2].Key.to].Remove(topThree[2].Key.from);
+
+    var reachable = new HashSet<string>();
+    var seed = graph.Keys.First();
+    reachable.Add(seed);
+    foreach (var v in graph.Keys.Skip(1))
+    {
+        if (shortestPath(graph, seed, v) != null)
+        {
+            reachable.Add(v);
+        }
+    }
+    return (3, String.Join("", reachable));
+}
+
+//this is the examle graph from their paper
 //https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=b10145f7fc3d07e43607abc2a148e58d24ced543
 //var testGraph = new Dictionary<string, Dictionary<string, int>>();
 //testGraph["one"] = new Dictionary<string, int>() { { "two", 2 }, { "five", 3 } };
@@ -180,7 +225,7 @@ Dictionary<string, Dictionary<string, int>> recursiveContractKargers(Dictionary<
     else
     {
         var limit = (int) Math.Ceiling(N / (Sqrt2 + 1));
-        
+
         var g1 = graph.ToDictionary(KeyValuePair => KeyValuePair.Key, KeyValuePair => KeyValuePair.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
         g1 = contractKargers(g1, limit);
         var r1 = recursiveContractKargers(g1);
@@ -258,8 +303,39 @@ Dictionary<string, Dictionary<string, int>> contractKargers(Dictionary<string, D
     return (minCut, node1);
 }
 
+Dictionary<string, Dictionary<string, int>> contractEdgeNew(Dictionary<string, Dictionary<string, int>> graph, string v1, string v2)
+{
+    var newV1 = graph[v1].Concat(graph[v2]).Where(e => e.Key != v1 && e.Key != v2)
+        .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
+
+    //find all the edges that previously joined to v1
+    //these need to join to newKey instead
+    foreach (var edge in graph[v1])
+    {
+        if (edge.Key == v2)
+            continue;
+
+        graph[edge.Key][v1] = edge.Value;
+    }
+    foreach (var edge in graph[v2])
+    {
+        if (edge.Key == v1)
+            continue;
+
+        graph[edge.Key][v1] = graph[edge.Key].ContainsKey(v1) ? graph[edge.Key][v1] + edge.Value : edge.Value;
+        graph[edge.Key].Remove(v2);
+    }
+    graph[v1] = newV1;
+    graph.Remove(v2);
+
+    return graph;
+}
+
 Dictionary<string, Dictionary<string, int>> contractEdge(Dictionary<string, Dictionary<string, int>> graph, string v1, string v2)
 {
+    //the keys grow quite long in this version
+    //better to convert to int keys, and then keep a seperate mapping of ints to strings that can be updated
+    //when we merge things
     var newKey = $"{v1}{v2}";
     graph[newKey] = graph[v1].Concat(graph[v2]).Where(e => e.Key != v1 && e.Key != v2)
         .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
@@ -295,6 +371,8 @@ Dictionary<string, Dictionary<string,int>> contract(Dictionary<string, List<Stri
     var rand = new Random();
     while (g.Count > 2)
     {
+        //we have to choose nodes randomly because we only change the graph
+        //if we find 4 independent routes
         string key1 = g.Keys.ToList()[rand.Next(g.Count)];
         string key2 = g[key1].ToList()[rand.Next(g[key1].Count - 1)].Key;
 
@@ -317,10 +395,36 @@ Dictionary<string, Dictionary<string,int>> contract(Dictionary<string, List<Stri
         if (path != null)
         {
             g = contractEdge(g, key1, key2);
-            //Console.WriteLine($"Created node {key1}{key2}, nodes left {g.Count}");
         }
     }
     return g;
+}
+List<string> shortestPath(Dictionary<string, List<string>> graph, string start, string end)
+{
+    var visited = new HashSet<string>();
+    var queue = new Queue<(string, List<string>)>();
+    visited.Add(start);
+    queue.Enqueue((start, [start]));
+    while (queue.Any())
+    {
+        (var curr, var route) = queue.Dequeue();
+        if (curr == end)
+        {
+            return route;
+        }
+
+        foreach (var edge in graph[curr])
+        {
+            if (visited.Contains(edge))
+                continue;
+
+            visited.Add(edge);
+            var newRoute = route.ToList();
+            newRoute.Add(edge);
+            queue.Enqueue((edge, newRoute));
+        }
+    }
+    return null;
 }
 
 List<(string from, string to)> canReachWithoutEdges(Dictionary<string, Dictionary<string,int>> graph, string start, string end, Dictionary<(string from, string to), int> without)
