@@ -26,12 +26,14 @@ var originalGraph = originalGraphStr.ToDictionary(kvp => keyToIntMap[kvp.Key], k
 Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Values.Sum(list => list.Count)}");
 
 var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
-        ("Count crossings", () => _2023_25.CountCrossings.MinimumCut(originalGraph, 50, 3)),
-        ("Distinct routes", () => _2023_25.DistinctRoutes.MinimumCut(originalGraph)),
-        ("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
-        ////*** seems to be fastest when fine tuned with these parameters ***
-        ("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, true, 2.1, 6)),
-        ("Karger", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, false, -1,-1))
+    
+        ("Find 4 Connected Set", () => _2023_25.Find4ConnectedSet.MinimumCut(originalGraph)),
+        //("Count crossings", () => _2023_25.CountCrossings.MinimumCut(originalGraph, 50, 3)),
+        //("Distinct routes", () => _2023_25.DistinctRoutes.MinimumCut(originalGraph)),
+        //("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
+        //////*** seems to be fastest when fine tuned with these parameters ***
+        //("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, true, 2.1, 6)),
+        //("Karger", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, false, -1,-1))
     };
 
 var averageRuntimes = new long[tests.Length];
