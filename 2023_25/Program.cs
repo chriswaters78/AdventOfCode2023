@@ -28,23 +28,18 @@ Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Value
 
 var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
         //("Count crossings", () => countCrossings(originalGraph)),
-        ("Handrolled", () => findDistinctRoutes(originalGraph)),
-        ////("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
-        ////("Karger-Stein 1", () => kargers(originalGraph, 3, true, 1.4, 7)),
-        ////("Karger-Stein 1.8", () => kargers(originalGraph, 3, true, 1.8, 6)),
-        ////("Karger-Stein 1.9", () => kargers(originalGraph, 3, true, 1.9, 6)),
-        //("Karger-Stein 2.0", () => kargers(originalGraph, 3, true, 2.0, 6)),
-        ////("Karger-Stein 2.1", () => kargers(originalGraph, 3, true, 2.1, 6)),
-        ////("Karger-Stein 2.2", () => kargers(originalGraph, 3, true, 2.2, 6)),
-        ////("Karger-Stein 2.3", () => kargers(originalGraph, 3, true, 2.3, 6)),
-        ////("Karger-Stein 6", () => kargers(originalGraph, 3, true, 3, 6)),
+        //("Handrolled", () => findDistinctRoutes(originalGraph)),
+        //("Stoer-Wagner", () => minimumCutStoerWagner(originalGraph)),
+        ("Karger-Stein 1.9", () => kargers(originalGraph, 3, true, 1.9, 6)),
+        ("Karger-Stein 2.0", () => kargers(originalGraph, 3, true, 2.0, 6)),
+        ("Karger-Stein 2.1", () => kargers(originalGraph, 3, true, 2.1, 6)),
         //("Karger", () => kargers(originalGraph, 3, false, -1,-1))
     };
 
 var averageRuntimes = new long[tests.Length];
 HashSet<string> prevSet1 = null;
 HashSet<string> prevSet2 = null;
-for (int i = 0; i < 100; i++)
+for (int i = 0; i < int.MaxValue; i++)
 {
     Console.WriteLine($"########### Iteration {i} ###########");
     foreach (var ((name, resultFactory), index) in tests.Select((test,i) => (test,i)))
@@ -232,7 +227,7 @@ Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> contractKargers(
     return (3, reachable.ToList());
 }
 
-//this is the examle graph from their paper
+//this is the examle weighted graph from their paper
 //https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=b10145f7fc3d07e43607abc2a148e58d24ced543
 //var testGraph = new Dictionary<string, Dictionary<string, int>>();
 //testGraph["one"] = new Dictionary<string, int>() { { "two", 2 }, { "five", 3 } };
@@ -303,14 +298,14 @@ Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> contractKargers(
     return (cutOfPhase, partition);
 }
 
-
-
-
 Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> contractEdge(Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> graph, int v1, int v2)
 {
     //we merge everything into v1 and keep that key
-    //and recorded any merges in the merges list for that node
-    //this is more efficient that using long merged strings in all the edge dictionaries
+    //and record any merges in the merges list for that node
+    //this is more efficient that using long merged strings as these will be stored multiple times as edges
+    
+    //this is the superset of edges for v1 after merging
+    //note this is a multiset / weighted graph so we track how many edges exist (or their weight count)
     var newV1 = graph[v1].edges.Concat(graph[v2].edges).Where(e => e.Key != v1 && e.Key != v2)
         .GroupBy(kvp => kvp.Key).ToDictionary(grp => grp.Key, grp => grp.Sum(kvp => kvp.Value));
 
@@ -328,17 +323,16 @@ Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> contractEdge(Dic
         if (edge.Key == v1)
             continue;
 
-        //the difference here is v2 might link to a node v3 that already linked to v1
-        //in which case we are adding extra edges between v3 and v1
+        //v2 might link to a node v3 that was already updated to link to v1
+        //in which case we need to add the extra edges between v3 and v1
         graph[edge.Key].edges[v1] = graph[edge.Key].edges.ContainsKey(v1) ? graph[edge.Key].edges[v1] + edge.Value : edge.Value;
-        //and we need to remove any links to v2 which will no longer exist
+        //and remove the original links to v2
         graph[edge.Key].edges.Remove(v2);
     }
 
     graph[v1] = (graph[v1].merges, newV1);
-    //we are keeping v1 as the merged node name
-    //so add any nodes that were previously merged into v2
-    //to v1's list of merges
+    //we are keeping v1 as the merged node name so add any nodes
+    //that were previously merged into v2 to v1's list of merges
     graph[v1].merges.AddRange(graph[v2].merges);
     graph.Remove(v2);
 
