@@ -94,7 +94,6 @@ namespace _2023_25
                 (var v1, var v2) = randomSelectKragersOST(tree);
 
                 //remove all existence of the edge in the tree
-
                 var v1Tree = treeCache[v1];
                 v1Tree.edges.Remove(v2);
 
@@ -107,23 +106,22 @@ namespace _2023_25
                 //how many times can edges be moved in total?
                 foreach (var v2Edge in v2Tree.edges)
                 {
-                    var v3 = v2Edge.Key;
-                    var v3Weight = v2Edge.Count;
+                    (var v3, var v3Weight) = (v2Edge.Key, v2Edge.Count);
+
                     if (v3 == v1)
-                        //removed already
                         continue;
 
-                    //should be able to cache this is a hash table for O(1) lookup?
+                    //O(1) lookup for our node trees as we cache them
+                    //and they never change
                     var v3Tree = treeCache[v3];                    
-                    //O(ln E to remove an exge)
+                    //O(ln E) to remove an edge
                     v3Tree.edges.Remove(v2);
 
                     if (v3Tree.edges.ContainsKey(v1))
                     {
                         //and then we get the edge tree O(ln E/N)
-                        v3Tree.edges.Get(v1, out var v3EdgeTree, out int v3EdgeRank, out int v3EdgeRankCount);
-                        v3Tree.edges.Set(v1, v3Weight + v3EdgeRankCount);
-                        v1Tree.edges.Set(v3, v3Weight + v3EdgeRankCount);
+                        v3Tree.edges.AdjustCount(v1, v3Weight);
+                        v1Tree.edges.AdjustCount(v3, v3Weight);
                     }
                     else
                     {
