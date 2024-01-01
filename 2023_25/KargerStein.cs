@@ -12,18 +12,20 @@ namespace _2023_25
     public static class KargerStein
     {
         static Random rand = new Random();
-        
+        static int edgeTransferCount = 0;
+
         public static (int minCut, List<int> partition) MinimumCut(ReadOnlyDictionary<int, List<int>> graph, int FINDCUT, bool useRecursive, double reductionFactor, int stopAt)
         {
             int bestCut = int.MaxValue;
             List<int> bestPartition = null;
-            while (bestCut != FINDCUT)
+            //while (bestCut != FINDCUT)
             {
-                var treeCache = new Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)>();
-                var tree = new TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int>)>();
+                edgeTransferCount = 0;
+                var treeCache = new Dictionary<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)>();
+                var tree = new AVLTreeMultiRankMap<int, (List<int> merges, RedBlackTreeMultiRankList<int>)>();
                 foreach ((var vertex, var edges) in graph)
                 {
-                    var edgeTree = new TreeLib.AVLTreeMultiRankList<int>();
+                    var edgeTree = new RedBlackTreeMultiRankList<int>();
                     int edgeTotal = 0;
                     foreach (var edge in edges)
                     {
@@ -45,16 +47,19 @@ namespace _2023_25
                     bestCut = minCut;
                     bestPartition = tree.First().Value.merges;
                 }
+
+                //this is typically ~300,000 for our input of ~1500 vertexes and 6000 edges
+                //~30,000 if we run the non-recursive version
+                Console.WriteLine($"Found cut of {bestCut} with {edgeTransferCount} edges transferred to merged nodes");
             }
             return (bestCut, bestPartition);
         }
 
-        static TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> edges)> recursiveContractKargers(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> tree)> tree, Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)> treeCache, double reductionFactor, int stopAt)
+        static TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)> recursiveContractKargers(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.RedBlackTreeMultiRankList<int> tree)> tree, Dictionary<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)> treeCache, double reductionFactor, int stopAt)
         {
             long N = tree.LongCount;
             if (N <= stopAt)
             {
-                //var g = graph.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.merges.ToList(), kvp.Value.edges.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value)));
                 contractKargers(tree, treeCache, 2);
                 return tree;
             }
@@ -66,13 +71,12 @@ namespace _2023_25
 
                 //we can modify the original graph for one branch
                 //but we have to take a copy for the other branch
-                var g2 = new AVLTreeMultiRankMap<int, (List<int> merges, AVLTreeMultiRankList<int> edges)>(tree);
-                var treeCache2 = new Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)>();
+                var g2 = new AVLTreeMultiRankMap<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)>(tree);
+                var treeCache2 = new Dictionary<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)>();
                 foreach (var g2Tree in g2.ToArray())
                 {
-                    //g2.Get(g2Tree.Key, out var g2TreeFull, out var g2TreeFullRank, out var g2TreeFullRankCount);
                     //make sure we copy merges, as well as the tree
-                    var newTree = (g2Tree.Value.merges.ToList(), new TreeLib.AVLTreeMultiRankList<int>(g2Tree.Value.edges));
+                    var newTree = (g2Tree.Value.merges.ToList(), new RedBlackTreeMultiRankList<int>(g2Tree.Value.edges));
                     g2.Set(g2Tree.Key, newTree, g2Tree.Count);
                     treeCache2[g2Tree.Key] = newTree;
                 }
@@ -86,7 +90,7 @@ namespace _2023_25
                 return r1.First().Count < r2.First().Count ? r1 : r2;
             }
         }
-        static void contractKargers(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> edges)> tree, Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)> treeCache, int k)
+        static void contractKargers(AVLTreeMultiRankMap<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)> tree, Dictionary<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)> treeCache, int k)
         {
             while (tree.LongCount > k)
             {
@@ -106,6 +110,7 @@ namespace _2023_25
                 //how many times can edges be moved in total?
                 foreach (var v2Edge in v2Tree.edges)
                 {
+                    edgeTransferCount++;
                     (var v3, var v3Weight) = (v2Edge.Key, v2Edge.Count);
 
                     if (v3 == v1)
@@ -117,6 +122,7 @@ namespace _2023_25
                     //O(ln E) to remove an edge
                     v3Tree.edges.Remove(v2);
 
+                    //could have an AddOrAdjust method?
                     if (v3Tree.edges.ContainsKey(v1))
                     {
                         //and then we get the edge tree O(ln E/N)
@@ -134,14 +140,16 @@ namespace _2023_25
                 tree.Set(v1, v1Tree, v1Tree.edges.RankCount);
             }
         }
-        static (int vertex, int edge) randomSelectKragersOST(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> edges)> tree)
+        static (int vertex, int edge) randomSelectKragersOST(AVLTreeMultiRankMap<int, (List<int> merges, RedBlackTreeMultiRankList<int> edges)> tree)
         {
             //O(ln V)
             var edgeRank = rand.Next(tree.RankCount);
+            //could change this to return the actual value, rather than the index
             tree.NearestLessByRank(edgeRank, out var nodeIndex);
             //O(ln E)
             var edgeTreeKey = tree.GetKeyByRank(nodeIndex);
             tree.Get(edgeTreeKey, out var edgeTree, out var rank, out var rankCount);
+            //and again, return the actual value, rather than the index
             edgeTree.edges.NearestLessByRank((edgeRank - rank) % rankCount, out var edgeIndex);
             var edge = edgeTree.edges.GetKeyByRank(edgeIndex);
             return (edgeTreeKey, edge);

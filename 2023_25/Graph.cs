@@ -132,6 +132,38 @@ namespace _2023_25
             }
             return null;
         }
+
+        public static Dictionary<int, List<int>> GenerateRandomHyperbolicGraph(int N, double alpha, double R)
+        {
+            Random rand = new Random();
+            var graph = new Dictionary<(int, double r, double theta), HashSet<int>>();
+            for (int n = 0; n < N; n++)
+            {
+                var theta = 2 * Math.PI * rand.NextDouble();
+                var r = alpha * (Math.Acosh(1 + (Math.Acosh(alpha * R) - 1) * rand.NextDouble()));
+                graph.Add((n, r, theta), new HashSet<int>());
+            }
+
+            foreach (var n1 in graph.Keys)
+            {
+                foreach (var n2 in graph.Keys)
+                {
+                    if (n1.Item1 == n2.Item1)
+                        continue;
+
+                    var d12y = n1.r * Math.Sin(n1.theta) - n2.r * Math.Sin(n2.theta);
+                    var d12x = n1.r * Math.Cos(n1.theta) - n2.r * Math.Cos(n2.theta);
+                    var d12 = Math.Sqrt(d12y*d12y + d12x*d12x);
+                    if (d12 < R * rand.NextDouble())
+                    {
+                        graph[n1].Add(n2.Item1);
+                        graph[n2].Add(n1.Item1);
+                    }
+                }
+            }
+
+            return graph.ToDictionary(kvp => kvp.Key.Item1, kvp => kvp.Value.ToList());
+        }
     }
 }
 

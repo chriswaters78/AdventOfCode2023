@@ -19,9 +19,12 @@ foreach (var line in File.ReadAllLines("input.txt"))
     }
 }
 
-var intToKeyMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.i, tp => tp.str).AsReadOnly();
-var keyToIntMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.str, tp => tp.i).AsReadOnly();
-var originalGraph = originalGraphStr.ToDictionary(kvp => keyToIntMap[kvp.Key], kvp => kvp.Value.Select(edge => keyToIntMap[edge]).ToList());
+//var intToKeyMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.i, tp => tp.str).AsReadOnly();
+//var keyToIntMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.str, tp => tp.i).AsReadOnly();
+//var originalGraph = originalGraphStr.ToDictionary(kvp => keyToIntMap[kvp.Key], kvp => kvp.Value.Select(edge => keyToIntMap[edge]).ToList());
+
+var originalGraph = _2023_25.Graph.GenerateRandomHyperbolicGraph(10000, 10, 5);
+var intToKeyMap = originalGraph.Keys.ToDictionary(i => i, i => i.ToString()).AsReadOnly();
 
 Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Values.Sum(list => list.Count)}");
 
@@ -30,7 +33,7 @@ var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
         //("Find 4 Connected Set", () => _2023_25.Find4ConnectedSet.MinimumCut(originalGraph)),
         //("Count crossings", () => _2023_25.CountCrossings.MinimumCut(originalGraph, 50, 3)),
         //("Distinct routes", () => _2023_25.DistinctRoutes.MinimumCut(originalGraph)),
-        //("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
+        ("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
         ////*** seems to be fastest when fine tuned with these parameters ***
         ("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, true, 2.1, 6)),
         //("Karger", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, false, -1,-1))
@@ -48,6 +51,7 @@ for (int i = 0; i < int.MaxValue; i++)
         (var minCut, List<int> partition) = resultFactory();
         stopwatch.Stop();
         averageRuntimes[index] = (averageRuntimes[index] * i + stopwatch.ElapsedMilliseconds) / (i + 1);
+        
         var set1 = partition.Select(i => intToKeyMap[i]).ToHashSet();
         var set2 = originalGraphStr.Keys.Where(key => !set1.Contains(key)).ToHashSet();
         
