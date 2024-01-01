@@ -68,11 +68,17 @@ namespace _2023_25
         }
         static void contractKargers(Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> graph, int k)
         {
-            var tree = new TreeLib.AVLTreeMultiRankList<(int from, int to)>();
-            foreach ((int from, int to, int count) in graph.SelectMany(
-                vertex => vertex.Value.edges.Select(edge => (vertex.Key, edge.Key, edge.Value))))
+            var tree = new TreeLib.AVLTreeMultiRankMap<int, TreeLib.AVLTreeMultiRankList<int>>();
+            foreach ((var vertex, (var merges, var edges)) in graph)
             {
-                tree.Add((from, to), count);
+                var edgeTree = new TreeLib.AVLTreeMultiRankList<int>();
+                int edgeTotal = 0;
+                foreach (var edge in edges)
+                {
+                    edgeTree.Add(edge.Key, edge.Value);
+                    edgeTotal += edge.Value;
+                }
+                tree.Add(vertex, edgeTree, edgeTotal);
             }
 
             while (graph.Count > k)
@@ -84,12 +90,12 @@ namespace _2023_25
                 //Es = cumulative probability of selecting an edge (sum of edge weights within node)
                 //we remove edges connecting the two nodes, all other nodes retain their edge weights
 
-
-                (var v1, var v2) = randomSelectKragersOST(tree, graph);
+                (var v1, var v2) = randomSelectKragersOST(tree);
 
                 //remove all existence of the edge in the tree
-                tree.Remove((v1, v2));
-                tree.Remove((v2, v1));
+                tree.Get(v1, out var v1Tree, out var v1NodeRank, out var v1NodeRankCount);
+                v1Tree.Remove(v2);
+                tree.Remove(v2);
 
                 //now we need to maintain our weight tree
                 foreach ((var v3, var v3Weight) in graph[v2].edges)
@@ -98,45 +104,36 @@ namespace _2023_25
                         //removed already
                         continue;
 
-                    //we remove from tree and re-add
-                    //O(ln n) both
-                    tree.Remove((v2, v3));
-                    tree.Remove((v3, v2));
+                    tree.Get(v3, out var v3Tree, out var v3NodeRank, out var v3NodeRankCount);
+                    v3Tree.Remove(v2);
 
-                    //and now we add edges from 
-                    var newEdge = (v3, v1);
-                    if (tree.ContainsKey(newEdge))
+                    if (v3Tree.ContainsKey(v1))
                     {
-                        tree.Get(newEdge, out var _, out int _, out int rankCount);
-                        tree.Set(newEdge, v3Weight + rankCount);
+                        v3Tree.Get(v1, out var v3EdgeTree, out int v3EdgeRank, out int v3EdgeRankCount);
+                        v3Tree.Set(v1, v3Weight + v3EdgeRankCount);
+                        v1Tree.Set(v3, v3Weight + v3EdgeRankCount);
                     }
                     else
                     {
-                        tree.Add(newEdge, v3Weight);
-                    }
-
-                    newEdge = (v1, v3);
-                    if (tree.ContainsKey(newEdge))
-                    {
-                        tree.Get(newEdge, out var _, out int _, out int rankCount);
-                        tree.Set(newEdge, v3Weight + rankCount);
-                    }
-                    else
-                    {
-                        tree.Add(newEdge, v3Weight);
+                        v3Tree.Add(v1, v3Weight);
+                        v1Tree.Add(v3, v3Weight);
                     }
                 }
+                //update v1 tree to reflect the new total edge weight
+                tree.Set(v1, v1Tree, v1Tree.RankCount);
 
                 _2023_25.Graph.ContractEdge(graph, v1, v2);
             }
         }
-        static (int vertex, int edge) randomSelectKragersOST(TreeLib.AVLTreeMultiRankList<(int from, int to)> tree, Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> graph)
+        static (int vertex, int edge) randomSelectKragersOST(TreeLib.AVLTreeMultiRankMap<int, TreeLib.AVLTreeMultiRankList<int>> tree)
         {
-            var edgeRank = rand.Next((int) tree.RankCount);
-            //huh tree doesn't actually support retrieving the i'th element
-            var edge = tree.GetKeyByRank(edgeRank);
-            
-            return edge;
+            var edgeRank = rand.Next(tree.RankCount);
+            tree.NearestLessByRank(edgeRank, out var nodeIndex);
+            var edgeTreeKey = tree.GetKeyByRank(nodeIndex);
+            tree.Get(edgeTreeKey, out var edgeTree, out var rank, out var rankCount);
+            edgeTree.NearestLessByRank((edgeRank - rank) % rankCount, out var edgeIndex);
+            var edge = edgeTree.GetKeyByRank(edgeIndex);
+            return (edgeTreeKey, edge);
         }
 
         static (int vertex, int edge) randomSelectKragers(Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> graph)
