@@ -39,7 +39,7 @@ var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
 var averageRuntimes = new long[tests.Length];
 HashSet<string> prevSet1 = null;
 HashSet<string> prevSet2 = null;
-for (int i = 0; i < int.MaxValue; i++)
+for (int i = 0; i < 1; i++)
 {
     Console.WriteLine($"########### Iteration {i} ###########");
     foreach (var ((name, resultFactory), index) in tests.Select((test,i) => (test,i)))

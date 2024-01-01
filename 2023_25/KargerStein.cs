@@ -19,6 +19,7 @@ namespace _2023_25
             List<int> bestPartition = null;
             while (bestCut != FINDCUT)
             {
+                var treeCache = new Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)>();
                 var tree = new TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int>)>();
                 foreach ((var vertex, var edges) in graph)
                 {
@@ -30,12 +31,13 @@ namespace _2023_25
                         edgeTotal += 1;
                     }
                     tree.Add(vertex, ([vertex], edgeTree), edgeTotal);
+                    treeCache.Add(vertex, ([vertex], edgeTree));
                 }
 
                 if (useRecursive)
-                    tree = recursiveContractKargers(tree, reductionFactor, stopAt);
+                    tree = recursiveContractKargers(tree, treeCache, reductionFactor, stopAt);
                 else
-                    contractKargers(tree, 2);
+                    contractKargers(tree, treeCache, 2);
 
                 var minCut = tree.First().Count;
                 if (minCut < bestCut)
@@ -47,13 +49,13 @@ namespace _2023_25
             return (bestCut, bestPartition);
         }
 
-        static TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> edges)> recursiveContractKargers(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> tree)> tree, double reductionFactor, int stopAt)
+        static TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> edges)> recursiveContractKargers(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> tree)> tree, Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)> treeCache, double reductionFactor, int stopAt)
         {
             long N = tree.LongCount;
             if (N <= stopAt)
             {
                 //var g = graph.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.merges.ToList(), kvp.Value.edges.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value)));
-                contractKargers(tree, 2);
+                contractKargers(tree, treeCache, 2);
                 return tree;
             }
             else
@@ -62,23 +64,29 @@ namespace _2023_25
                 //with the recommended factor of 1/sqrt(2), 2.1 seems to work better
                 var limit = (int)(N / reductionFactor);
 
-                //we can modify the original graph
+                //we can modify the original graph for one branch
+                //but we have to take a copy for the other branch
                 var g2 = new AVLTreeMultiRankMap<int, (List<int> merges, AVLTreeMultiRankList<int> edges)>(tree);
+                var treeCache2 = new Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)>();
                 foreach (var g2Tree in g2.ToArray())
                 {
                     //g2.Get(g2Tree.Key, out var g2TreeFull, out var g2TreeFullRank, out var g2TreeFullRankCount);
-                    g2.Set(g2Tree.Key, (g2Tree.Value.merges.ToList(), new TreeLib.AVLTreeMultiRankList<int>(g2Tree.Value.edges)), g2Tree.Count);
+                    //make sure we copy merges, as well as the tree
+                    var newTree = (g2Tree.Value.merges.ToList(), new TreeLib.AVLTreeMultiRankList<int>(g2Tree.Value.edges));
+                    g2.Set(g2Tree.Key, newTree, g2Tree.Count);
+                    treeCache2[g2Tree.Key] = newTree;
                 }
-                contractKargers(tree, limit);
-                var r1 = recursiveContractKargers(tree, reductionFactor, stopAt);
 
-                contractKargers(g2, limit);
-                var r2 = recursiveContractKargers(g2, reductionFactor, stopAt);
+                contractKargers(tree, treeCache, limit);
+                var r1 = recursiveContractKargers(tree, treeCache, reductionFactor, stopAt);
+
+                contractKargers(g2, treeCache2, limit);
+                var r2 = recursiveContractKargers(g2, treeCache2, reductionFactor, stopAt);
 
                 return r1.First().Count < r2.First().Count ? r1 : r2;
             }
         }
-        static void contractKargers(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> edges)> tree, int k)
+        static void contractKargers(TreeLib.AVLTreeMultiRankMap<int, (List<int> merges, TreeLib.AVLTreeMultiRankList<int> edges)> tree, Dictionary<int, (List<int> merges, AVLTreeMultiRankList<int> edges)> treeCache, int k)
         {
             while (tree.LongCount > k)
             {
@@ -86,10 +94,11 @@ namespace _2023_25
                 (var v1, var v2) = randomSelectKragersOST(tree);
 
                 //remove all existence of the edge in the tree
-                tree.Get(v1, out var v1Tree, out var v1NodeRank, out var v1NodeRankCount);
+
+                var v1Tree = treeCache[v1];
                 v1Tree.edges.Remove(v2);
 
-                tree.Get(v2, out var v2Tree, out var v2NodeRank, out var v2NodeRankCount);
+                var v2Tree = treeCache[v2];
                 tree.Remove(v2);
 
                 //now we need to maintain our weight tree
@@ -104,8 +113,9 @@ namespace _2023_25
                         //removed already
                         continue;
 
-                    //this is the expensive bit, getting the tree
-                    tree.Get(v3, out var v3Tree, out var v3NodeRank, out var v3NodeRankCount);
+                    //should be able to cache this is a hash table for O(1) lookup?
+                    var v3Tree = treeCache[v3];                    
+                    //O(ln E to remove an exge)
                     v3Tree.edges.Remove(v2);
 
                     if (v3Tree.edges.ContainsKey(v1))
