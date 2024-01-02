@@ -86,6 +86,7 @@ namespace _2023_25
             while (graph.Count > k)
             {
                 (var vertex, var edge) = randomSelectKragers(graph);
+                //can get an error if contract the only edge between two nodes
                 _2023_25.Graph.ContractEdgeNoHistory(graph, new Edge(vertex,edge));
                 merges.Union(vertex, edge);
             }

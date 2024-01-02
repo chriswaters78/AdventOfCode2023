@@ -2,7 +2,7 @@
   "profiles": {
     "2023_25": {
       "commandName": "Project",
-      "commandLineArgs": "false 1000"
+      "commandLineArgs": "true 100"
     }
   }
 }

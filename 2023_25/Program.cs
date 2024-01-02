@@ -39,7 +39,8 @@ else
     originalGraph = originalGraphStr.ToDictionary(kvp => keyToIntMap[kvp.Key], kvp => kvp.Value.Select(edge => keyToIntMap[edge]).ToList());
 }
 
-Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Values.Sum(list => list.Count)}");
+(var N, var E) = (originalGraph.Keys.Count, originalGraph.Values.Sum(list => list.Count));
+Console.WriteLine($"{N} nodes, edges {E}, degree {E/N}");
 
 var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
     
