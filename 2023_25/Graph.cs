@@ -140,7 +140,7 @@ namespace _2023_25
             for (int n = 0; n < N; n++)
             {
                 var theta = 2 * Math.PI * rand.NextDouble();
-                var r = alpha * (Math.Acosh(1 + (Math.Acosh(alpha * R) - 1) * rand.NextDouble()));
+                var r = Math.Acosh(1 + (Math.Acosh(alpha * R) - 1) * rand.NextDouble()) / alpha;
                 graph.Add((n, r, theta), new HashSet<int>());
             }
 
@@ -151,10 +151,8 @@ namespace _2023_25
                     if (n1.Item1 == n2.Item1)
                         continue;
 
-                    var d12y = n1.r * Math.Sin(n1.theta) - n2.r * Math.Sin(n2.theta);
-                    var d12x = n1.r * Math.Cos(n1.theta) - n2.r * Math.Cos(n2.theta);
-                    var d12 = Math.Sqrt(d12y*d12y + d12x*d12x);
-                    if (d12 < R * rand.NextDouble())
+                    var d12 = Math.Sqrt(n1.r*n1.r + n2.r*n2.r + 2 * n1.r * n2.r * Math.Cos(n1.theta - n2.theta));
+                    if (rand.NextDouble() < d12 / R)
                     {
                         graph[n1].Add(n2.Item1);
                         graph[n2].Add(n1.Item1);

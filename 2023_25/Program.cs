@@ -1,30 +1,41 @@
 ﻿using System.Diagnostics;
+using System.Linq;
 double Sqrt2 = Math.Sqrt(2);
 Random rand = new Random();
 var stopwatch = new Stopwatch();
 
-var originalGraphStr = new Dictionary<string, List<string>>();
-foreach (var line in File.ReadAllLines("input.txt"))
+Dictionary<string, List<string>> originalGraphStr = null;
+Dictionary<int, List<int>> originalGraph = null;
+Dictionary<int, string> intToKeyMap;
+
+var runAgainstRandomGraph = bool.Parse(args[0]);
+if (runAgainstRandomGraph)
 {
-    //jqt: rhn xhk nvd
-    var sp = line.Split(": ");
-    if (!originalGraphStr.ContainsKey(sp[0]))
-        originalGraphStr[sp[0]] = new List<string>();
-    foreach (var edge in sp[1].Split(" "))
-    {
-        originalGraphStr[sp[0]].Add(edge);
-        if (!originalGraphStr.ContainsKey(edge))
-            originalGraphStr[edge] = new List<string>();
-        originalGraphStr[edge].Add(sp[0]);
-    }
+    originalGraph = _2023_25.Graph.GenerateRandomHyperbolicGraph(int.Parse(args[1]), 3, 500);
+    intToKeyMap = originalGraph.Keys.ToDictionary(i => i, i => i.ToString());
+    originalGraphStr = originalGraph.ToDictionary(kvp => intToKeyMap[kvp.Key], kvp => kvp.Value.Select(i => intToKeyMap[i]).ToList());
 }
-
-//var intToKeyMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.i, tp => tp.str).AsReadOnly();
-//var keyToIntMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.str, tp => tp.i).AsReadOnly();
-//var originalGraph = originalGraphStr.ToDictionary(kvp => keyToIntMap[kvp.Key], kvp => kvp.Value.Select(edge => keyToIntMap[edge]).ToList());
-
-var originalGraph = _2023_25.Graph.GenerateRandomHyperbolicGraph(10000, 10, 5);
-var intToKeyMap = originalGraph.Keys.ToDictionary(i => i, i => i.ToString()).AsReadOnly();
+else
+{
+    originalGraphStr = new Dictionary<string, List<string>>();
+    foreach (var line in File.ReadAllLines("input.txt"))
+    {
+        //jqt: rhn xhk nvd
+        var sp = line.Split(": ");
+        if (!originalGraphStr.ContainsKey(sp[0]))
+            originalGraphStr[sp[0]] = new List<string>();
+        foreach (var edge in sp[1].Split(" "))
+        {
+            originalGraphStr[sp[0]].Add(edge);
+            if (!originalGraphStr.ContainsKey(edge))
+                originalGraphStr[edge] = new List<string>();
+            originalGraphStr[edge].Add(sp[0]);
+        }
+    }
+    intToKeyMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.i, tp => tp.str);
+    var keyToIntMap = originalGraphStr.Keys.Select((str, i) => (str, i)).ToDictionary(tp => tp.str, tp => tp.i);
+    originalGraph = originalGraphStr.ToDictionary(kvp => keyToIntMap[kvp.Key], kvp => kvp.Value.Select(edge => keyToIntMap[edge]).ToList());
+}
 
 Console.WriteLine($"{originalGraph.Keys.Count} nodes, edges {originalGraph.Values.Sum(list => list.Count)}");
 
@@ -33,9 +44,10 @@ var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
         //("Find 4 Connected Set", () => _2023_25.Find4ConnectedSet.MinimumCut(originalGraph)),
         //("Count crossings", () => _2023_25.CountCrossings.MinimumCut(originalGraph, 50, 3)),
         //("Distinct routes", () => _2023_25.DistinctRoutes.MinimumCut(originalGraph)),
-        ("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
-        ////*** seems to be fastest when fine tuned with these parameters ***
-        ("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, true, 2.1, 6)),
+        //("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
+        //OST version seems slower for some reason?
+        ("Karger-Stein OST", () => _2023_25.KargerStein_OST.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
+        ("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
         //("Karger", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, false, -1,-1))
     };
 
@@ -67,16 +79,16 @@ for (int i = 0; i < int.MaxValue; i++)
         }
         else
         {
-            Console.WriteLine($"Found two sets with mincut of {minCut}");
-            Console.WriteLine($"Set 1: [{String.Join(",", set1)}]");
-            Console.WriteLine($"Set 2: [{String.Join(",", set2)}]");
+            //Console.WriteLine($"Found two sets with mincut of {minCut}");
+            //Console.WriteLine($"Set 1: [{String.Join(",", set1)}]");
+            //Console.WriteLine($"Set 2: [{String.Join(",", set2)}]");
             
-            var edges = originalGraphStr.SelectMany(kvp => kvp.Value.Select(to => (kvp.Key, to)))
-                .Where(tp => set1.Contains(tp.Key) && set2.Contains(tp.to) || set2.Contains(tp.Key) && set1.Contains(tp.to))
-                .Select(tp => tp.Key.CompareTo(tp.to) == -1 ? (tp.Key, tp.to) : (tp.to, tp.Key))
-                .Distinct().ToList<(string from, string to)>();
+            //var edges = originalGraphStr.SelectMany(kvp => kvp.Value.Select(to => (kvp.Key, to)))
+            //    .Where(tp => set1.Contains(tp.Key) && set2.Contains(tp.to) || set2.Contains(tp.Key) && set1.Contains(tp.to))
+            //    .Select(tp => tp.Key.CompareTo(tp.to) == -1 ? (tp.Key, tp.to) : (tp.to, tp.Key))
+            //    .Distinct().ToList<(string from, string to)>();
             
-            Console.WriteLine($"Min cut edges = {String.Join("; ", edges.Select(tp => $"{tp.from} => {tp.to}"))}");
+            //Console.WriteLine($"Min cut edges = {String.Join("; ", edges.Select(tp => $"{tp.from} => {tp.to}"))}");
         }
         (prevSet1, prevSet2) = (set1, set2);
     }
