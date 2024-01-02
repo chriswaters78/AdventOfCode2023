@@ -12,8 +12,10 @@ var runAgainstRandomGraph = bool.Parse(args[0]);
 if (runAgainstRandomGraph)
 {
     originalGraph = _2023_25.Graph.GenerateRandomHyperbolicGraph(int.Parse(args[1]), 3, 500);
+    //originalGraph = _2023_25.Graph.SimpleGraph();
     intToKeyMap = originalGraph.Keys.ToDictionary(i => i, i => i.ToString());
     originalGraphStr = originalGraph.ToDictionary(kvp => intToKeyMap[kvp.Key], kvp => kvp.Value.Select(i => intToKeyMap[i]).ToList());
+
 }
 else
 {
@@ -66,7 +68,11 @@ for (int i = 0; i < int.MaxValue; i++)
         
         var set1 = partition.Select(i => intToKeyMap[i]).ToHashSet();
         var set2 = originalGraphStr.Keys.Where(key => !set1.Contains(key)).ToHashSet();
-        
+
+        if (minCut == 3 && (set1.Count != 6 && set2.Count != 6))
+        {
+        }
+
         Console.WriteLine($"{name}: min cut {minCut}, partition {set1.Count} <=> {set2.Count}, average: {averageRuntimes[index]}ms, this: {stopwatch.ElapsedMilliseconds}ms");
 
         (set1, set2) = set1.Count <= set2.Count ? (set1, set2) : (set2, set1);

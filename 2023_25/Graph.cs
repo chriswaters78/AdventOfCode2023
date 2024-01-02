@@ -132,6 +132,15 @@ namespace _2023_25
             }
             return null;
         }
+        public static Dictionary<int, List<int>> SimpleGraph()
+        {
+            var graph = new Dictionary<int, List<int>>();
+            graph[1] = [2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3];
+            graph[2] = [1, 1, 1, 1, 1, 3, 3, 3];
+            graph[3] = [1, 1, 1, 1, 1, 1, 2,2,2];
+
+            return graph;
+        }
 
         public static Dictionary<int, List<int>> GenerateRandomHyperbolicGraph(int N, double alpha, double R)
         {
@@ -160,7 +169,7 @@ namespace _2023_25
                 }
             }
 
-            return graph.ToDictionary(kvp => kvp.Key.Item1, kvp => kvp.Value.ToList());
+            return graph.Where(kvp => kvp.Value.Count != 0).ToDictionary(kvp => kvp.Key.Item1, kvp => kvp.Value.ToList());
         }
     }
 }
