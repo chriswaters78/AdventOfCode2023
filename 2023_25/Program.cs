@@ -49,14 +49,14 @@ var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
         //("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
         //OST version seems slower for some reason?
         ("Karger-Stein OST", () => _2023_25.KargerStein_OST.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
-        ("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
+        //("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
         //("Karger", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, false, -1,-1))
     };
 
 var averageRuntimes = new long[tests.Length];
 HashSet<string> prevSet1 = null;
 HashSet<string> prevSet2 = null;
-for (int i = 0; i < int.MaxValue; i++)
+for (int i = 0; i < 1; i++)
 {
     Console.WriteLine($"########### Iteration {i} ###########");
     foreach (var ((name, resultFactory), index) in tests.Select((test,i) => (test,i)))
