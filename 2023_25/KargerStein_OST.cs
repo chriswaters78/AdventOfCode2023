@@ -13,9 +13,6 @@ namespace _2023_25
     public static class KargerStein_OST
     {
         static Random rand = new Random();
-        static int recurseCalled = 0;
-        static int contractCalled = 0;
-        static int edgeTransferCount = 0;
 
         public static (int minCut, List<int> partition) MinimumCut(ReadOnlyDictionary<int, List<int>> graph, int FINDCUT, bool useRecursive, double reductionFactor, int stopAt)
         {
@@ -23,11 +20,8 @@ namespace _2023_25
             List<int> bestPartition = null;
             while (bestCut > FINDCUT)
             {
-                recurseCalled = 0;
-                contractCalled = 0;
-                edgeTransferCount = 0;
-                Dictionary<int, Dictionary<int, int>> nodeCache = new Dictionary<int, Dictionary<int, int>>();
-                ForestDisjointSet<int> merges = new ForestDisjointSet<int>();
+                var nodeCache = new Dictionary<int, Dictionary<int, int>>();
+                var merges = new ForestDisjointSet<int>();
                 var tree = new AVLTreeMultiRankMap<int, Dictionary<int, int>>();
 
                 foreach ((var vertex, var edges) in graph)
@@ -47,37 +41,25 @@ namespace _2023_25
                     merges.MakeSet(vertex);
                 }
 
-                AVLTreeMultiRankMap<int, Dictionary<int, int>> returnTree = null;
-                if (useRecursive)
-                    (returnTree, merges) = recursiveContractKargers(tree, nodeCache, merges, reductionFactor, stopAt);
-                else
-                {
-                    contractKargers(tree, nodeCache, merges, 2);
-                    returnTree = tree;
-                }
+                (tree, merges) = useRecursive ? recursiveContractKargers(tree, nodeCache, merges, reductionFactor, stopAt)
+                                              : contractKargers(tree, nodeCache, merges, 2);
 
-                var minCut = returnTree.First().Count;
+                var minCut = tree.First().Count;
                 if (minCut < bestCut)
                 {
                     bestCut = minCut;
                     bestPartition = nodeCache.Keys.Where(key => merges.AreInSameSet(key,tree.First().Key)).ToList();
                 }
-
-                //this is typically ~300,000 for our input of ~1500 vertexes and 6000 edges
-                //~30,000 if we run the non-recursive version
-                //Console.WriteLine($"OST - Found cut of {bestCut} with {recurseCalled} recursions, {contractCalled} contractions, {edgeTransferCount} edges transferred to merged nodes");
             }
             return (bestCut, bestPartition);
         }
 
         static (TreeLib.AVLTreeMultiRankMap<int, Dictionary<int,int>>, ForestDisjointSet<int> merges) recursiveContractKargers(TreeLib.AVLTreeMultiRankMap<int, Dictionary<int,int>> tree, Dictionary<int, Dictionary<int, int>> nodeCache, ForestDisjointSet<int> merges, double reductionFactor, int stopAt)
         {
-            recurseCalled++;
             long N = tree.LongCount;
             if (N <= stopAt)
             {
-                contractKargers(tree, nodeCache, merges, 2);
-                return (tree, merges);
+                return contractKargers(tree, nodeCache, merges, 2);
             }
             else
             {
@@ -113,9 +95,6 @@ namespace _2023_25
                 contractKargers(g2, nodeCache2, set2, limit);
                 var r2 = recursiveContractKargers(g2, nodeCache2, set2, reductionFactor, stopAt);
 
-                if (r1.Item1.First().Count <= 3 || r2.Item1.First().Count <= 3)
-                {
-                }
                 (var returnTree, var returnSet) = r1.Item1.First().Count < r2.Item1.First().Count ? r1 : r2;
 
                 foreach (var key in originalKeys)
@@ -126,9 +105,8 @@ namespace _2023_25
                 return (returnTree, merges);
             }
         }
-        static ForestDisjointSet<int> contractKargers(AVLTreeMultiRankMap<int, Dictionary<int, int>> tree, Dictionary<int, Dictionary<int, int>> nodeCache, ForestDisjointSet<int> merges, int k)
+        static (TreeLib.AVLTreeMultiRankMap<int, Dictionary<int, int>>, ForestDisjointSet<int> merges) contractKargers(AVLTreeMultiRankMap<int, Dictionary<int, int>> tree, Dictionary<int, Dictionary<int, int>> nodeCache, ForestDisjointSet<int> merges, int k)
         {
-            contractCalled++;
             while (tree.LongCount > k)
             {
                 //O(E/N + ln N)
@@ -146,8 +124,6 @@ namespace _2023_25
                 int movedWeights = 0;
                 foreach ((var v3, var v3Weight) in v2Edges)
                 {
-                    edgeTransferCount++;
-
                     if (v3 == v1)
                         continue;
 
@@ -160,7 +136,7 @@ namespace _2023_25
                     v3Edges.Remove(v2);
 
                     //could have an AddOrAdjust method?
-                    if (v3Edges.ContainsKey(v1))
+                    if (!v3Edges.TryAdd(v1, v3Weight))
                     {
                         //and then we get the edge tree O(ln E/N)
                         v3Edges[v1] += v3Weight;
@@ -168,7 +144,6 @@ namespace _2023_25
                     }
                     else
                     {
-                        v3Edges.Add(v1, v3Weight);
                         v1Edges.Add(v3, v3Weight);
                     }
                     //these are new v1 edges to add the weight back on
@@ -179,7 +154,8 @@ namespace _2023_25
                 merges.Union(v1, v2);
                 tree.AdjustCount(v1, movedWeights - v2Edges[v1]);
             }
-            return merges;
+
+            return (tree, merges);
         }
         static (int vertex, int edge) randomSelectKragersOST(AVLTreeMultiRankMap<int, Dictionary<int, int>> tree)
         {

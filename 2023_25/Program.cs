@@ -47,9 +47,8 @@ var tests = new (string name, Func<(int minCut, List<int> partition)>)[] {
         //("Count crossings", () => _2023_25.CountCrossings.MinimumCut(originalGraph, 50, 3)),
         //("Distinct routes", () => _2023_25.DistinctRoutes.MinimumCut(originalGraph)),
         //("Stoer-Wagner", () => _2023_25.StoerWagner.MinimumCut(originalGraph.AsReadOnly())),
-        //OST version seems slower for some reason?
         ("Karger-Stein OST", () => _2023_25.KargerStein_OST.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
-        //("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
+        ("Karger-Stein", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), !runAgainstRandomGraph ? 3 : int.MaxValue - 1, true, 2.1, 6)),
         //("Karger", () => _2023_25.KargerStein.MinimumCut(originalGraph.AsReadOnly(), 3, false, -1,-1))
     };
 

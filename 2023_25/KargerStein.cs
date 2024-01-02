@@ -1,4 +1,5 @@
 ﻿using QuikGraph;
+using QuikGraph.Collections;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,9 +12,6 @@ namespace _2023_25
     public static class KargerStein
     {
         static Random rand = new Random();
-        static int recurseCalled = 0;
-        static int contractCalled = 0;
-        static long totalSelectEnumerations = 0;
 
         public static (int minCut, List<int> partition) MinimumCut(ReadOnlyDictionary<int, List<int>> graph, int FINDCUT, bool useRecursive, double reductionFactor, int stopAt)
         {
@@ -21,40 +19,33 @@ namespace _2023_25
             List<int> bestPartition = null;
             while (bestCut > FINDCUT)
             {
-                recurseCalled = 0;
-                contractCalled = 0;
-                totalSelectEnumerations = 0;
+                var merges = new ForestDisjointSet<int>();
 
-                Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> g = graph.ToDictionary(kvp => kvp.Key, kvp => (new List<int>() { kvp.Key }, kvp.Value.ToDictionary(str => str, _ => 1)));
-                if (useRecursive)
+                var g = graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(str => str, _ => 1));
+                foreach ((var vertex, var edges) in g)
                 {
-                    g = recursiveContractKargers(g, reductionFactor, stopAt);
-                }
-                else
-                {
-                    contractKargers(g, 2);
+                    merges.MakeSet(vertex);
                 }
 
-                var minCut = g.Values.First().edges.Sum(kvp => kvp.Value);
+                (g, merges) = useRecursive ? recursiveContractKargers(g, merges, reductionFactor, stopAt)
+                            : contractKargers(g, merges, 2);
+
+                var minCut = g.Values.First().Sum(kvp => kvp.Value);
                 if (minCut < bestCut)
                 {
                     bestCut = minCut;
-                    bestPartition = g.First().Value.merges;
+                    bestPartition = graph.Keys.Where(key => merges.AreInSameSet(key, g.First().Key)).ToList();
                 }
-                Console.WriteLine($"KS - Found cut of {bestCut} with {recurseCalled} recursion calls, {contractCalled} contracts, {totalSelectEnumerations} select enumerations");
             }
             return (bestCut, bestPartition);
         }
 
-        static Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> recursiveContractKargers(Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> graph, double reductionFactor, int stopAt)
+        static (Dictionary<int, Dictionary<int, int>>, ForestDisjointSet<int>) recursiveContractKargers(Dictionary<int, Dictionary<int, int>> graph, ForestDisjointSet<int> merges, double reductionFactor, int stopAt)
         {
-            recurseCalled++;
             int N = graph.Count;
             if (N <= stopAt)
             {
-                //var g = graph.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.merges.ToList(), kvp.Value.edges.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value)));
-                contractKargers(graph, 2);
-                return graph;
+                return contractKargers(graph, merges, 2);
             }
             else
             {
@@ -63,28 +54,45 @@ namespace _2023_25
                 var limit = (int)(N / reductionFactor);
 
                 //we can modify the original graph
-                var g2 = graph.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value.merges.ToList(), kvp.Value.edges.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value)));
+                var originalKeys = new List<int>();
+                var set1 = new ForestDisjointSet<int>();
+                var set2 = new ForestDisjointSet<int>();
 
-                contractKargers(graph, limit);
-                var r1 = recursiveContractKargers(graph, reductionFactor, stopAt);
+                var g2 = graph.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(kvp2 => kvp2.Key, kvp2 => kvp2.Value));
+                foreach (var key in g2.Keys)
+                {
+                    set1.MakeSet(key);
+                    set2.MakeSet(key);
+                    originalKeys.Add(key);
+                }
 
-                contractKargers(g2, limit);
-                var r2 = recursiveContractKargers(g2, reductionFactor, stopAt);
+                contractKargers(graph, set1, limit);
+                var r1 = recursiveContractKargers(graph, set1, reductionFactor, stopAt);
 
-                return r1.Values.First().edges.Sum(kvp => kvp.Value) < r2.Values.First().edges.Sum(kvp => kvp.Value) ? r1 : r2;
+                contractKargers(g2, set2, limit);
+                var r2 = recursiveContractKargers(g2, set2, reductionFactor, stopAt);
+
+                (var returnGraph, var returnSet) = r1.Item1.First().Value.Sum(kvp => kvp.Value) < r2.Item1.First().Value.Sum(kvp => kvp.Value) ? r1 : r2;
+                foreach (var key in originalKeys)
+                {
+                    merges.Union(key, returnSet.FindSet(key));
+                }
+
+                return (returnGraph, merges);
             }
         }
-        static void contractKargers(Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> graph, int k)
+        static (Dictionary<int, Dictionary<int, int>> graph, ForestDisjointSet<int> merges) contractKargers(Dictionary<int, Dictionary<int, int>> graph, ForestDisjointSet<int> merges, int k)
         {
-            contractCalled++;
             while (graph.Count > k)
             {
                 (var vertex, var edge) = randomSelectKragers(graph);
-                _2023_25.Graph.ContractEdge(graph, vertex, edge);
+                _2023_25.Graph.ContractEdgeNoHistory(graph, new Edge(vertex,edge));
+                merges.Union(vertex, edge);
             }
+            return (graph, merges);
         }
 
-        static (int vertex, int edge) randomSelectKragers(Dictionary<int, (List<int> merges, Dictionary<int, int> edges)> graph)
+        static (int vertex, int edge) randomSelectKragers(Dictionary<int, Dictionary<int, int>> graph)
         {
             //find weights for all keys
             var Ds = new int[graph.Count, 2];
@@ -92,7 +100,7 @@ namespace _2023_25
             int i = 0;
             foreach (var kvp in graph)
             {
-                acc += kvp.Value.edges.Count;
+                acc += kvp.Value.Count;
                 Ds[i, 0] = kvp.Key;
                 Ds[i, 1] = acc;
                 i++;
@@ -107,10 +115,10 @@ namespace _2023_25
                     break;
                 }
             }
-            var Es = new int[graph[chosenVertex].edges.Count, 2];
+            var Es = new int[graph[chosenVertex].Count, 2];
             acc = 0;
             i = 0;
-            foreach (var kvp in graph[chosenVertex].edges)
+            foreach (var kvp in graph[chosenVertex])
             {
                 acc += kvp.Value;
                 Es[i, 0] = kvp.Key;
@@ -128,8 +136,6 @@ namespace _2023_25
                 }
             }
             
-            totalSelectEnumerations += Es.Length + Ds.Length;
-
             return (chosenVertex, chosenEdge);
         }
     }
