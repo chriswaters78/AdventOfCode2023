@@ -47,12 +47,16 @@ namespace _2023_25
                     merges.MakeSet(vertex);
                 }
 
+                AVLTreeMultiRankMap<int, Dictionary<int, int>> returnTree = null;
                 if (useRecursive)
-                    (var returnTree, var returnSet) = recursiveContractKargers(tree, nodeCache, merges, reductionFactor, stopAt);
+                    (returnTree, merges) = recursiveContractKargers(tree, nodeCache, merges, reductionFactor, stopAt);
                 else
+                {
                     contractKargers(tree, nodeCache, merges, 2);
+                    returnTree = tree;
+                }
 
-                var minCut = tree.First().Count;
+                var minCut = returnTree.First().Count;
                 if (minCut < bestCut)
                 {
                     bestCut = minCut;
@@ -109,6 +113,9 @@ namespace _2023_25
                 contractKargers(g2, nodeCache2, set2, limit);
                 var r2 = recursiveContractKargers(g2, nodeCache2, set2, reductionFactor, stopAt);
 
+                if (r1.Item1.First().Count <= 3 || r2.Item1.First().Count <= 3)
+                {
+                }
                 (var returnTree, var returnSet) = r1.Item1.First().Count < r2.Item1.First().Count ? r1 : r2;
 
                 foreach (var key in originalKeys)
