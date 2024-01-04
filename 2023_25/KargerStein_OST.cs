@@ -14,6 +14,11 @@ namespace _2023_25
     {
         static Random rand = new Random();
 
+        static int NOperations = 0;
+        static int EOperations = 0;
+        static double LnNOperations = 0;
+        static int DisjointOperations = 0;
+
         public static (int minCut, List<int> partition) MinimumCut(ReadOnlyDictionary<int, List<int>> graph, int FINDCUT, bool useRecursive, double reductionFactor, int stopAt)
         {
             int bestCut = int.MaxValue;
@@ -23,6 +28,10 @@ namespace _2023_25
                 var nodeCache = new Dictionary<int, Dictionary<int, int>>();
                 var merges = new ForestDisjointSet<int>();
                 var tree = new AVLTreeMultiRankMap<int, Dictionary<int, int>>();
+                NOperations = 0;
+                EOperations = 0;
+                LnNOperations = 0;
+                DisjointOperations = 0;
 
                 foreach ((var vertex, var edges) in graph)
                 {
@@ -50,6 +59,8 @@ namespace _2023_25
                     bestCut = minCut;
                     bestPartition = nodeCache.Keys.Where(key => merges.AreInSameSet(key,tree.First().Key)).ToList();
                 }
+
+                Console.WriteLine($"Nodes: {graph.Count}, Edges: {graph.Sum(kvp => kvp.Value.Count)}, NOps: {NOperations}, EOps: {EOperations}, LnNOps: {LnNOperations}, DisjointOps: {DisjointOperations}");
             }
             return (bestCut, bestPartition);
         }
@@ -81,12 +92,21 @@ namespace _2023_25
                 var nodeCache2 = new Dictionary<int, Dictionary<int, int>>();
                 foreach (var g2Tree in g2.ToArray())
                 {
+
                     //make sure we copy merges, as well as the tree
                     var newTree = g2Tree.Value.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                    NOperations += g2Tree.Count;
+
                     g2.Set(g2Tree.Key, newTree, g2Tree.Count);
+                    LnNOperations += Math.Log(g2Tree.Count);
+
                     nodeCache2[g2Tree.Key] = newTree;
+                    
+
                     set1.MakeSet(g2Tree.Key);
                     set2.MakeSet(g2Tree.Key);
+                    DisjointOperations += 2;
+
                     originalKeys.Add(g2Tree.Key);
                 }
 
@@ -100,6 +120,7 @@ namespace _2023_25
 
                 foreach (var key in originalKeys)
                 {
+                    DisjointOperations++;
                     merges.Union(key, returnSet.FindSet(key));
                 }
 
@@ -114,17 +135,20 @@ namespace _2023_25
                 (var v1, var v2) = randomSelectKragersOST(tree);
 
                 var v1Edges = nodeCache[v1];
-                //this doesn't adjust the root tree weight                
+                //this doesn't adjust the root tree weight
                 v1Edges.Remove(v2);
 
                 var v2Edges = nodeCache[v2];
                 //this removes from the total tree weight the original sum of all v2s edges
                 tree.Remove(v2);
+                LnNOperations += 2;
 
                 //now we need to maintain our weight tree
                 int movedWeights = 0;
                 foreach ((var v3, var v3Weight) in v2Edges)
                 {
+                    EOperations++;
+
                     if (v3 == v1)
                         continue;
 
@@ -132,8 +156,6 @@ namespace _2023_25
                     //and they never change
                     var v3Edges = nodeCache[v3];
                     
-                    //Union-Find structure can be used for unweighted graphs
-                    //O(ln n) to remove the edge                    
                     v3Edges.Remove(v2);
 
                     //could have an AddOrAdjust method?
@@ -153,7 +175,10 @@ namespace _2023_25
 
                 //update v1 tree to reflect the new total edge weight
                 merges.Union(v1, v2);
+                DisjointOperations++;
+
                 tree.AdjustCount(v1, movedWeights - v2Edges[v1]);
+                LnNOperations += Math.Log(tree.Count);
             }
 
             return (tree, merges);
@@ -164,8 +189,8 @@ namespace _2023_25
             var edgeRank = rand.Next(tree.RankCount);
             //could change this to return the actual value, rather than the index
             tree.NearestLessByRank(edgeRank, out var nodeIndex);
+            LnNOperations += Math.Log(tree.Count); 
             
-            //O(E)
             var edgeTreeKey = tree.GetKeyByRank(nodeIndex);
             tree.Get(edgeTreeKey, out var edgeTree, out var rank, out var rankCount);
 
@@ -176,6 +201,7 @@ namespace _2023_25
             var edges = edgeTree.ToArray();
             for (int i = 0; true; i++)
             {
+                EOperations++;
                 acc += edges[i].Value;
                 if (acc >= index)
                 {
