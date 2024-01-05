@@ -78,12 +78,15 @@ namespace _2023_25
                 //with the recommended factor of 1/sqrt(2), 2.1 seems to work better
                 var limit = (int)(N / reductionFactor);
 
+                contractKargers(tree, nodeCache, merges, limit);
+
                 //we can modify the original graph for one branch
                 //but we have to take a copy for the other branch
                 //for our Union-Find set
                 //we create two new copies, and initialise them with the nodes in the tree so far
                 //then when we select one to return, we merge all nodes back int with the original
                 //we need to keep a copy of what the original keys were to allow this to work
+
 
                 var originalKeys = new List<int>();
                 var set1 = new ForestDisjointSet<int>();
@@ -110,7 +113,6 @@ namespace _2023_25
                     originalKeys.Add(g2Tree.Key);
                 }
 
-                contractKargers(tree, nodeCache, set1, limit);
                 var r1 = recursiveContractKargers(tree, nodeCache, set1, reductionFactor, stopAt);
 
                 contractKargers(g2, nodeCache2, set2, limit);
